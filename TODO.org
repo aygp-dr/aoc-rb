@@ -1,0 +1,219 @@
+#+TITLE: Advent of Code Ruby - Task Tracking
+#+AUTHOR: Jason Walsh
+#+STARTUP: overview
+#+TODO: TODO(t) IN-PROGRESS(i) WAITING(w) | DONE(d) CANCELLED(c)
+#+PROPERTY: Effort_ALL 0:15 0:30 1:00 2:00 4:00 8:00
+#+COLUMNS: %40ITEM %17EFFORT{:} %SCHEDULED %DEADLINE %TAGS
+
+* Project Setup
+** DONE Initialize repository with jj colocate
+   CLOSED: [2025-11-30 Sun 19:00]
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:00]
+   :END:
+
+** DONE Create Makefile with tangle and dependency checks
+   CLOSED: [2025-11-30 Sun 19:05]
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:05]
+   :END:
+
+** DONE Set up direnv and Emacs environment
+   CLOSED: [2025-11-30 Sun 19:10]
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:10]
+   :END:
+
+** DONE Create comprehensive utility library
+   CLOSED: [2025-11-30 Sun 19:20]
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:20]
+   :END:
+   - Input reading utilities
+   - Math functions (gcd, lcm, CRT)
+   - Grid helpers
+   - Graph algorithms (BFS, Dijkstra, A*)
+   - Priority queue implementation
+
+** DONE Create interactive console with Pry
+   CLOSED: [2025-11-30 Sun 19:25]
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:25]
+   :END:
+
+* 2015 Solutions                                                       :2015:
+** DONE Day 01: Not Quite Lisp                                       :day01:
+   CLOSED: [2025-11-30 Sun 19:30]
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:30]
+   :END:
+   - Part 1: 232 (example - actual answer depends on input)
+   - Part 2: 1783 (example - actual answer depends on input)
+
+** DONE Day 10: Elves Look, Elves Say                                :day10:
+   CLOSED: [2025-11-30 Sun 19:30]
+   :PROPERTIES:
+   :EFFORT:   0:30
+   :END:
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:30]
+   :END:
+   - Part 1: 492982 (40 iterations)
+   - Part 2: 6989950 (50 iterations)
+
+** TODO Day 02: I Was Told There Would Be No Math                    :day02:
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+
+** TODO Day 03: Perfectly Spherical Houses in a Vacuum               :day03:
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+
+** TODO Day 04: The Ideal Stocking Stuffer                           :day04:
+   :PROPERTIES:
+   :EFFORT:   0:30
+   :END:
+   - MD5 hashing puzzle
+
+** TODO Day 05: Doesn't He Have Intern-Elves For This?               :day05:
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+   - String validation rules
+
+** TODO Day 06: Probably a Fire Hazard                               :day06:
+   :PROPERTIES:
+   :EFFORT:   0:30
+   :END:
+   - Grid-based light toggling
+
+** TODO Day 07: Some Assembly Required                               :day07:
+   :PROPERTIES:
+   :EFFORT:   1:00
+   :END:
+   - Circuit simulation with bitwise operations
+
+** TODO Day 08: Matchsticks                                          :day08:
+   :PROPERTIES:
+   :EFFORT:   0:30
+   :END:
+   - String escaping/encoding
+
+** TODO Day 09: All in a Single Night                                :day09:
+   :PROPERTIES:
+   :EFFORT:   0:30
+   :END:
+   - Traveling salesman variant
+
+* 2022 Solutions                                                       :2022:
+** DONE Day 01: Calorie Counting                                     :day01:
+   CLOSED: [2025-11-30 Sun 19:30]
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+   :LOGBOOK:
+   - State "DONE"       from "TODO"       [2025-11-30 Sun 19:30]
+   :END:
+   - Part 1: 57020
+   - Part 2: 169092
+
+** TODO Day 02: Rock Paper Scissors                                  :day02:
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+
+** TODO Day 03: Rucksack Reorganization                              :day03:
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+
+** TODO Day 04: Camp Cleanup                                         :day04:
+   :PROPERTIES:
+   :EFFORT:   0:15
+   :END:
+
+** TODO Day 05: Supply Stacks                                        :day05:
+   :PROPERTIES:
+   :EFFORT:   0:30
+   :END:
+   - Stack manipulation puzzle
+
+* Yearly Progress Summary
+#+NAME: progress-summary
+| Year | Completed | Total | Percentage |
+|------+-----------+-------+------------|
+| 2015 |         2 |    25 |         8% |
+| 2016 |         0 |    25 |         0% |
+| 2017 |         0 |    25 |         0% |
+| 2018 |         0 |    25 |         0% |
+| 2019 |         0 |    25 |         0% |
+| 2020 |         0 |    25 |         0% |
+| 2021 |         0 |    25 |         0% |
+| 2022 |         1 |    25 |         4% |
+| 2023 |         0 |    25 |         0% |
+| 2024 |         0 |    25 |         0% |
+
+* Algorithm Patterns Reference
+** Graph Algorithms
+- BFS :: Shortest path in unweighted graphs
+- Dijkstra :: Shortest path with weighted edges
+- A* :: Heuristic-guided pathfinding
+- Topological Sort :: DAG ordering
+
+** Grid Patterns
+- Flood fill :: Connected component detection
+- Direction arrays :: 4-way and 8-way movement
+- Rotation/reflection :: Grid transformations
+
+** Math Patterns
+- GCD/LCM :: Common in cycle detection
+- Chinese Remainder Theorem :: Modular arithmetic puzzles
+- Memoization :: Dynamic programming optimization
+
+* Notes
+** Common Ruby Patterns for AoC
+#+begin_src ruby
+# Parse integers from a line
+line.scan(/-?\d+/).map(&:to_i)
+
+# Grid parsing
+input.lines.map { |l| l.chomp.chars }
+
+# Hash with default value
+count = Hash.new(0)
+
+# Infinite loop with break
+loop do
+  break if condition
+end
+
+# Memoization with hash
+@cache ||= {}
+@cache[key] ||= expensive_calculation
+#+end_src
+
+** Running Solutions
+#+begin_src bash
+# Run a specific day
+ruby 2015/day01/solution.rb
+
+# Run tests
+bundle exec rspec 2015/day01/spec/
+
+# Interactive console
+ruby bin/console 2015 1
+
+# Fetch input (requires session cookie)
+ruby bin/fetch_input.rb 2015 1
+#+end_src
+
+* Local Variables                                                  :noexport:
+# Local Variables:
+# org-log-done: time
+# org-log-into-drawer: t
+# End:
