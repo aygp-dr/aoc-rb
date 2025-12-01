@@ -1,0 +1,89 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Interactive console for Advent of Code Ruby development
+# Usage: ruby bin/console
+#        ruby bin/console 2015 1
+
+require 'bundler/setup'
+require 'pry'
+
+# Load utilities
+$LOAD_PATH.unshift File.expand_path('../lib', __dir__)
+require 'aoc_utils'
+
+# Helper to load a specific day's solution
+def load_day(year, day)
+  day_str = day.to_s.rjust(2, '0')
+  solution_file = "#{year}/day#{day_str}/solution.rb"
+
+  if File.exist?(solution_file)
+    load solution_file
+    puts "Loaded #{solution_file}"
+
+    # Try to instantiate the solver
+    klass = Object.const_get("Day#{day_str}")
+    input_file = "#{year}/day#{day_str}/input.txt"
+    if File.exist?(input_file) && !File.read(input_file).strip.empty?
+      input = File.read(input_file)
+      solver = klass.new(input)
+      puts "Created solver instance: solver"
+      solver
+    else
+      puts "No input file or empty input. Create instance manually with: Day#{day_str}.new(input)"
+      nil
+    end
+  else
+    puts "Solution file not found: #{solution_file}"
+    nil
+  end
+rescue => e
+  puts "Error loading day: #{e.message}"
+  nil
+end
+
+# Shorthand for common operations
+def read_input(year, day)
+  AocUtils.read_input(year, day)
+end
+
+def read_lines(year, day)
+  AocUtils.read_lines(year, day)
+end
+
+def read_grid(year, day)
+  AocUtils.read_grid(year, day)
+end
+
+# Print help on startup
+puts <<~BANNER
+  ╔═══════════════════════════════════════════════════════════════╗
+  ║           Advent of Code Ruby Interactive Console             ║
+  ╠═══════════════════════════════════════════════════════════════╣
+  ║  Available utilities:                                         ║
+  ║    AocUtils       - Math, grid, graph algorithms              ║
+  ║    Grid           - Grid wrapper class                        ║
+  ║    PriorityQueue  - Min-heap priority queue                   ║
+  ║                                                               ║
+  ║  Helper functions:                                            ║
+  ║    load_day(year, day)     - Load a day's solution            ║
+  ║    read_input(year, day)   - Read puzzle input                ║
+  ║    read_lines(year, day)   - Read input as lines              ║
+  ║    read_grid(year, day)    - Read input as 2D grid            ║
+  ║                                                               ║
+  ║  Example:                                                     ║
+  ║    solver = load_day(2015, 1)                                 ║
+  ║    solver.part1                                               ║
+  ╚═══════════════════════════════════════════════════════════════╝
+
+BANNER
+
+# If year and day provided as arguments, load them
+if ARGV.length >= 2
+  year = ARGV[0].to_i
+  day = ARGV[1].to_i
+  solver = load_day(year, day)
+end
+
+# Start Pry session
+Pry.start
