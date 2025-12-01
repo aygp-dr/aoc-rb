@@ -68,6 +68,90 @@ module AocUtils
     end % prod
   end
 
+  # Modular exponentiation: (base^exp) % mod
+  def self.mod_pow(base, exp, mod)
+    result = 1
+    base = base % mod
+
+    while exp > 0
+      result = (result * base) % mod if exp.odd?
+      exp >>= 1
+      base = (base * base) % mod
+    end
+
+    result
+  end
+
+  # Prime check
+  def self.prime?(n)
+    return false if n < 2
+    return true if n == 2
+    return false if n.even?
+
+    (3..Math.sqrt(n).to_i).step(2).none? { |i| (n % i).zero? }
+  end
+
+  # Prime factors
+  def self.prime_factors(n)
+    factors = []
+    d = 2
+
+    while d * d <= n
+      while (n % d).zero?
+        factors << d
+        n /= d
+      end
+      d += 1
+    end
+
+    factors << n if n > 1
+    factors
+  end
+
+  # Divisors of n
+  def self.divisors(n)
+    result = []
+    (1..Math.sqrt(n).to_i).each do |i|
+      if (n % i).zero?
+        result << i
+        result << n / i if i != n / i
+      end
+    end
+    result.sort
+  end
+
+  # Sum of divisors
+  def self.sum_of_divisors(n)
+    divisors(n).sum
+  end
+
+  # Factorial
+  def self.factorial(n)
+    (1..n).reduce(1, :*)
+  end
+
+  # Binomial coefficient (n choose k)
+  def self.binomial(n, k)
+    return 0 if k > n
+    return 1 if k == 0 || k == n
+
+    # Use symmetry to minimize calculations
+    k = n - k if k > n - k
+
+    result = 1
+    (0...k).each do |i|
+      result = result * (n - i) / (i + 1)
+    end
+    result
+  end
+
+  # Fibonacci (with memoization)
+  def self.fibonacci(n, memo = {})
+    return n if n <= 1
+
+    memo[n] ||= fibonacci(n - 1, memo) + fibonacci(n - 2, memo)
+  end
+
   # ============================================================
   # Distance Functions
   # ============================================================
@@ -258,6 +342,287 @@ module AocUtils
 
   def self.extract_words(str)
     str.scan(/[a-zA-Z]+/)
+  end
+
+  # ============================================================
+  # Combinatorics
+  # ============================================================
+
+  # All permutations of an array
+  def self.permutations(arr)
+    arr.permutation.to_a
+  end
+
+  # All combinations of size k
+  def self.combinations(arr, k)
+    arr.combination(k).to_a
+  end
+
+  # Cartesian product of arrays
+  def self.cartesian_product(*arrays)
+    arrays[0].product(*arrays[1..])
+  end
+
+  # Power set (all subsets)
+  def self.power_set(arr)
+    (0..arr.length).flat_map { |k| arr.combination(k).to_a }
+  end
+
+  # ============================================================
+  # Sequence/Range Utilities
+  # ============================================================
+
+  # Check if ranges overlap
+  def self.ranges_overlap?(r1, r2)
+    r1.cover?(r2.begin) || r2.cover?(r1.begin)
+  end
+
+  # Merge overlapping ranges
+  def self.merge_ranges(ranges)
+    sorted = ranges.sort_by(&:begin)
+    merged = [sorted.first]
+
+    sorted[1..].each do |range|
+      if merged.last.end >= range.begin - 1
+        merged[-1] = (merged.last.begin..[merged.last.end, range.end].max)
+      else
+        merged << range
+      end
+    end
+
+    merged
+  end
+
+  # Find cycle in sequence (returns [cycle_start, cycle_length])
+  def self.find_cycle(initial_state, next_state_proc)
+    seen = { initial_state => 0 }
+    state = initial_state
+    step = 0
+
+    loop do
+      step += 1
+      state = next_state_proc.call(state)
+
+      if seen.key?(state)
+        cycle_start = seen[state]
+        cycle_length = step - cycle_start
+        return [cycle_start, cycle_length, state]
+      end
+
+      seen[state] = step
+    end
+  end
+
+  # Get state after n iterations using cycle detection
+  def self.state_after_n(initial_state, n, next_state_proc)
+    cycle_start, cycle_length, _ = find_cycle(initial_state, next_state_proc)
+
+    # If n is before cycle starts, just iterate
+    if n < cycle_start
+      state = initial_state
+      n.times { state = next_state_proc.call(state) }
+      return state
+    end
+
+    # Find equivalent position in cycle
+    remaining = (n - cycle_start) % cycle_length
+    state = initial_state
+    (cycle_start + remaining).times { state = next_state_proc.call(state) }
+    state
+  end
+
+  # ============================================================
+  # String Utilities
+  # ============================================================
+
+  # Count character frequencies
+  def self.char_frequencies(str)
+    str.chars.tally
+  end
+
+  # Check if string is palindrome
+  def self.palindrome?(str)
+    str == str.reverse
+  end
+
+  # Hamming distance between two strings
+  def self.hamming_distance(s1, s2)
+    s1.chars.zip(s2.chars).count { |a, b| a != b }
+  end
+
+  # Levenshtein edit distance
+  def self.edit_distance(s1, s2)
+    m, n = s1.length, s2.length
+    dp = Array.new(m + 1) { Array.new(n + 1, 0) }
+
+    (0..m).each { |i| dp[i][0] = i }
+    (0..n).each { |j| dp[0][j] = j }
+
+    (1..m).each do |i|
+      (1..n).each do |j|
+        cost = s1[i - 1] == s2[j - 1] ? 0 : 1
+        dp[i][j] = [
+          dp[i - 1][j] + 1,      # deletion
+          dp[i][j - 1] + 1,      # insertion
+          dp[i - 1][j - 1] + cost # substitution
+        ].min
+      end
+    end
+
+    dp[m][n]
+  end
+
+  # ============================================================
+  # Binary/Bit Operations
+  # ============================================================
+
+  # Count set bits
+  def self.popcount(n)
+    n.to_s(2).count('1')
+  end
+
+  # Get bit at position
+  def self.get_bit(n, pos)
+    (n >> pos) & 1
+  end
+
+  # Set bit at position
+  def self.set_bit(n, pos)
+    n | (1 << pos)
+  end
+
+  # Clear bit at position
+  def self.clear_bit(n, pos)
+    n & ~(1 << pos)
+  end
+
+  # Toggle bit at position
+  def self.toggle_bit(n, pos)
+    n ^ (1 << pos)
+  end
+
+  # Binary string to integer
+  def self.bin_to_int(str)
+    str.to_i(2)
+  end
+
+  # Integer to binary string
+  def self.int_to_bin(n, width = nil)
+    width ? n.to_s(2).rjust(width, '0') : n.to_s(2)
+  end
+
+  # ============================================================
+  # Hash/Digest (for puzzles like 2015 Day 4)
+  # ============================================================
+
+  def self.md5(str)
+    require 'digest'
+    Digest::MD5.hexdigest(str)
+  end
+
+  def self.sha256(str)
+    require 'digest'
+    Digest::SHA256.hexdigest(str)
+  end
+
+  # ============================================================
+  # Flood Fill / Connected Components
+  # ============================================================
+
+  def self.flood_fill(grid, start_row, start_col, target = nil, &block)
+    require 'set'
+    target ||= grid[start_row][start_col]
+    visited = Set.new
+    queue = [[start_row, start_col]]
+
+    while (pos = queue.shift)
+      row, col = pos
+      next if visited.include?(pos)
+      next unless in_bounds?(grid, row, col)
+      next unless grid[row][col] == target
+
+      visited << pos
+      block.call(row, col) if block_given?
+
+      neighbors_4(row, col).each { |n| queue << n }
+    end
+
+    visited
+  end
+
+  # Find all connected components in a grid
+  def self.connected_components(grid, passable_chars = nil)
+    require 'set'
+    visited = Set.new
+    components = []
+
+    grid.each_with_index do |row, r|
+      row.each_with_index do |cell, c|
+        next if visited.include?([r, c])
+        next if passable_chars && !passable_chars.include?(cell)
+
+        component = flood_fill(grid, r, c, cell)
+        components << component unless component.empty?
+        visited.merge(component)
+      end
+    end
+
+    components
+  end
+
+  # ============================================================
+  # Geometry
+  # ============================================================
+
+  # Shoelace formula for polygon area
+  def self.polygon_area(vertices)
+    n = vertices.length
+    sum = 0
+
+    (0...n).each do |i|
+      j = (i + 1) % n
+      sum += vertices[i][0] * vertices[j][1]
+      sum -= vertices[j][0] * vertices[i][1]
+    end
+
+    sum.abs / 2.0
+  end
+
+  # Pick's theorem: interior points from area and boundary points
+  # A = i + b/2 - 1, so i = A - b/2 + 1
+  def self.interior_points(area, boundary_points)
+    area - boundary_points / 2 + 1
+  end
+
+  # Point in polygon (ray casting)
+  def self.point_in_polygon?(point, polygon)
+    x, y = point
+    n = polygon.length
+    inside = false
+
+    j = n - 1
+    (0...n).each do |i|
+      xi, yi = polygon[i]
+      xj, yj = polygon[j]
+
+      if ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+        inside = !inside
+      end
+
+      j = i
+    end
+
+    inside
+  end
+
+  # ============================================================
+  # Interval/Coordinate Compression
+  # ============================================================
+
+  def self.compress_coordinates(values)
+    sorted = values.uniq.sort
+    mapping = sorted.each_with_index.to_h
+    [mapping, sorted]
   end
 
   # ============================================================

@@ -219,6 +219,133 @@ RSpec.describe Grid do
   end
 end
 
+RSpec.describe 'AocUtils Extended' do
+  describe 'Math Extensions' do
+    describe '.mod_pow' do
+      it 'calculates modular exponentiation' do
+        expect(AocUtils.mod_pow(2, 10, 1000)).to eq(24)
+        expect(AocUtils.mod_pow(3, 7, 13)).to eq(3)
+      end
+    end
+
+    describe '.prime?' do
+      it 'identifies primes correctly' do
+        expect(AocUtils.prime?(2)).to be true
+        expect(AocUtils.prime?(17)).to be true
+        expect(AocUtils.prime?(4)).to be false
+        expect(AocUtils.prime?(1)).to be false
+      end
+    end
+
+    describe '.prime_factors' do
+      it 'returns prime factors' do
+        expect(AocUtils.prime_factors(12)).to eq([2, 2, 3])
+        expect(AocUtils.prime_factors(17)).to eq([17])
+      end
+    end
+
+    describe '.divisors' do
+      it 'returns all divisors' do
+        expect(AocUtils.divisors(12)).to eq([1, 2, 3, 4, 6, 12])
+      end
+    end
+
+    describe '.binomial' do
+      it 'calculates binomial coefficients' do
+        expect(AocUtils.binomial(5, 2)).to eq(10)
+        expect(AocUtils.binomial(10, 3)).to eq(120)
+      end
+    end
+  end
+
+  describe 'String Utilities' do
+    describe '.char_frequencies' do
+      it 'counts character frequencies' do
+        expect(AocUtils.char_frequencies('aabbc')).to eq({ 'a' => 2, 'b' => 2, 'c' => 1 })
+      end
+    end
+
+    describe '.hamming_distance' do
+      it 'calculates hamming distance' do
+        expect(AocUtils.hamming_distance('abc', 'axc')).to eq(1)
+        expect(AocUtils.hamming_distance('abc', 'xyz')).to eq(3)
+      end
+    end
+
+    describe '.edit_distance' do
+      it 'calculates edit distance' do
+        expect(AocUtils.edit_distance('kitten', 'sitting')).to eq(3)
+        expect(AocUtils.edit_distance('abc', 'abc')).to eq(0)
+      end
+    end
+  end
+
+  describe 'Bit Operations' do
+    describe '.popcount' do
+      it 'counts set bits' do
+        expect(AocUtils.popcount(7)).to eq(3)   # 111
+        expect(AocUtils.popcount(8)).to eq(1)   # 1000
+      end
+    end
+
+    describe '.bin_to_int' do
+      it 'converts binary string to integer' do
+        expect(AocUtils.bin_to_int('1010')).to eq(10)
+      end
+    end
+
+    describe '.int_to_bin' do
+      it 'converts integer to binary string' do
+        expect(AocUtils.int_to_bin(10)).to eq('1010')
+        expect(AocUtils.int_to_bin(5, 8)).to eq('00000101')
+      end
+    end
+  end
+
+  describe 'Combinatorics' do
+    describe '.power_set' do
+      it 'generates all subsets' do
+        result = AocUtils.power_set([1, 2])
+        expect(result).to contain_exactly([], [1], [2], [1, 2])
+      end
+    end
+  end
+
+  describe 'Ranges' do
+    describe '.ranges_overlap?' do
+      it 'detects overlapping ranges' do
+        expect(AocUtils.ranges_overlap?(1..5, 3..7)).to be true
+        expect(AocUtils.ranges_overlap?(1..3, 5..7)).to be false
+      end
+    end
+
+    describe '.merge_ranges' do
+      it 'merges overlapping ranges' do
+        result = AocUtils.merge_ranges([1..3, 2..5, 7..9])
+        expect(result).to eq([1..5, 7..9])
+      end
+    end
+  end
+
+  describe 'Hashing' do
+    describe '.md5' do
+      it 'calculates MD5 hash' do
+        expect(AocUtils.md5('advent')).to eq('79181e621a6def7d3001234738c8b1ca')
+      end
+    end
+  end
+
+  describe 'Geometry' do
+    describe '.polygon_area' do
+      it 'calculates polygon area using shoelace formula' do
+        # Square with vertices (0,0), (4,0), (4,4), (0,4) = area 16
+        vertices = [[0, 0], [4, 0], [4, 4], [0, 4]]
+        expect(AocUtils.polygon_area(vertices)).to eq(16.0)
+      end
+    end
+  end
+end
+
 RSpec.describe PriorityQueue do
   describe 'min-heap behavior' do
     it 'pops items in priority order' do
