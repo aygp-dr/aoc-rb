@@ -1,0 +1,429 @@
+#+TITLE: Advent of Code - Ruby Implementation Journey
+#+AUTHOR: Jason Walsh
+#+PROPERTY: header-args:ruby :mkdirp t :results output
+
+* Overview
+
+This repository contains Ruby implementations for all Advent of Code years, approached as a learning journey through the language and problem-solving patterns.
+
+** Project Structure
+
+#+begin_src mermaid :file docs/structure.mmd
+graph TB
+    AOC[Advent of Code Ruby]
+    AOC --> Y2015[2015 - Foundations]
+    AOC --> Y2016[2016]
+    AOC --> Y2017[2017]
+    AOC --> Y2018[2018]
+    AOC --> Y2019[2019]
+    AOC --> Y2020[2020]
+    AOC --> Y2021[2021]
+    AOC --> Y2022[2022]
+    AOC --> Y2023[2023]
+    AOC --> Y2024[2024 - Current]
+    
+    Y2015 --> P2015[25 Days]
+    Y2024 --> P2024[25 Days]
+    
+    style AOC fill:#f9f,stroke:#333
+    style Y2024 fill:#9ff,stroke:#333
+#+end_src
+
+* Environment Setup
+
+** Ruby Version
+
+#+begin_src ruby :tangle .ruby-version
+3.3.0
+#+end_src
+
+** Gemfile
+
+#+begin_src ruby :tangle Gemfile
+source 'https://rubygems.org'
+
+gem 'rspec', '~> 3.12'
+gem 'pry', '~> 0.14'
+gem 'benchmark-ips', '~> 2.12'
+gem 'matrix', '~> 0.4'
+gem 'algorithms', '~> 1.0'
+
+group :development do
+  gem 'rubocop', '~> 1.59'
+  gem 'solargraph', '~> 0.50'
+end
+#+end_src
+
+** Directory Structure Generator
+
+#+begin_src ruby :tangle bin/setup_year.rb :shebang "#!/usr/bin/env ruby"
+require 'fileutils'
+
+year = ARGV[0] || Time.now.year
+
+(1..25).each do |day|
+  day_str = day.to_s.rjust(2, '0')
+  dir = "#{year}/day#{day_str}"
+  
+  FileUtils.mkdir_p(dir)
+  FileUtils.mkdir_p("#{dir}/spec")
+  
+  # Create main solution file
+  File.write("#{dir}/solution.rb", <<~RUBY)
+    # Advent of Code #{year} - Day #{day}
+    
+    class Day#{day_str}
+      def initialize(input)
+        @input = input
+      end
+      
+      def part1
+        # TODO: Implement part 1
+      end
+      
+      def part2
+        # TODO: Implement part 2
+      end
+    end
+    
+    if __FILE__ == $0
+      input = File.read('input.txt')
+      solver = Day#{day_str}.new(input)
+      puts "Part 1: \#{solver.part1}"
+      puts "Part 2: \#{solver.part2}"
+    end
+  RUBY
+  
+  # Create spec file
+  File.write("#{dir}/spec/solution_spec.rb", <<~RUBY)
+    require_relative '../solution'
+    
+    RSpec.describe Day#{day_str} do
+      let(:example_input) { <<~INPUT }
+        # TODO: Add example input
+      INPUT
+      
+      subject { described_class.new(example_input) }
+      
+      describe '#part1' do
+        it 'solves the example' do
+          skip 'Not implemented yet'
+          expect(subject.part1).to eq(nil)
+        end
+      end
+      
+      describe '#part2' do
+        it 'solves the example' do
+          skip 'Not implemented yet'
+          expect(subject.part2).to eq(nil)
+        end
+      end
+    end
+  RUBY
+  
+  # Create placeholder files
+  FileUtils.touch("#{dir}/input.txt")
+  FileUtils.touch("#{dir}/README.md")
+end
+
+puts "Setup complete for year #{year}!"
+#+end_src
+
+* Progress Tracking
+
+** Implementation Status
+
+#+NAME: aoc-progress
+| Year | Days Complete | Stars | Notes                          |
+|------+---------------+-------+--------------------------------|
+| 2015 |             0 |     0 | Starting point                 |
+| 2016 |             0 |     0 |                                |
+| 2017 |             0 |     0 |                                |
+| 2018 |             0 |     0 |                                |
+| 2019 |             0 |     0 |                                |
+| 2020 |             0 |     0 |                                |
+| 2021 |             0 |     0 | Have Clojure implementation    |
+| 2022 |             0 |     0 |                                |
+| 2023 |             0 |     0 | Have Clojure implementation    |
+| 2024 |             0 |     0 | Have polyglot implementations  |
+
+** Progress Visualization
+
+#+begin_src mermaid :file docs/progress.mmd
+gantt
+    title Advent of Code Ruby Journey
+    dateFormat YYYY-MM-DD
+    section 2015
+    Days 1-5   :2024-12-01, 5d
+    Days 6-10  :5d
+    Days 11-15 :5d
+    Days 16-20 :5d
+    Days 21-25 :5d
+    section 2016
+    Days 1-25  :30d
+#+end_src
+
+* Learning Objectives
+
+** Ruby Patterns to Explore
+
+- Functional patterns with Enumerable
+- Object-oriented design patterns
+- Performance optimization techniques
+- Metaprogramming for DSLs
+- Fiber-based solutions for state machines
+
+** Algorithm Focus Areas
+
+#+begin_src mermaid :file docs/algorithms.mmd
+mindmap
+  root((Ruby AoC))
+    Graph Algorithms
+      BFS/DFS
+      Dijkstra
+      A*
+      Topological Sort
+    Dynamic Programming
+      Memoization
+      Tabulation
+      State Machines
+    Data Structures
+      Custom Collections
+      Priority Queues
+      Spatial Indexing
+    Parsing
+      Regex Patterns
+      State Machines
+      AST Building
+#+end_src
+
+* Template Solutions
+
+** Basic Template
+
+#+begin_src ruby :tangle templates/basic.rb
+class Solution
+  attr_reader :input
+  
+  def initialize(input)
+    @input = input.strip.lines.map(&:chomp)
+  end
+  
+  def part1
+    input.each_with_object(0) do |line, acc|
+      # Process line
+    end
+  end
+  
+  def part2
+    # Usually builds on part1
+  end
+  
+  private
+  
+  def parse_line(line)
+    # Common parsing logic
+  end
+end
+#+end_src
+
+** Grid-Based Template
+
+#+begin_src ruby :tangle templates/grid.rb
+class GridSolution
+  def initialize(input)
+    @grid = input.strip.lines.map { |line| line.chomp.chars }
+    @height = @grid.length
+    @width = @grid[0].length
+  end
+  
+  def at(row, col)
+    return nil if row < 0 || col < 0 || row >= @height || col >= @width
+    @grid[row][col]
+  end
+  
+  def neighbors(row, col, diagonal: false)
+    deltas = diagonal ? 
+      [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]] :
+      [[-1,0],[0,-1],[0,1],[1,0]]
+    
+    deltas.map { |dr, dc| [row + dr, col + dc] }
+          .select { |r, c| at(r, c) }
+  end
+end
+#+end_src
+
+* Utility Functions
+
+** Common Helpers
+
+#+begin_src ruby :tangle lib/aoc_utils.rb :mkdirp t
+module AocUtils
+  def self.read_input(year, day)
+    day_str = day.to_s.rjust(2, '0')
+    File.read("#{year}/day#{day_str}/input.txt")
+  end
+  
+  def self.manhattan_distance(p1, p2)
+    p1.zip(p2).sum { |a, b| (a - b).abs }
+  end
+  
+  def self.gcd(a, b)
+    b.zero? ? a : gcd(b, a % b)
+  end
+  
+  def self.lcm(a, b)
+    (a * b) / gcd(a, b)
+  end
+  
+  # Memoization decorator
+  def self.memoize(method_name)
+    original = instance_method(method_name)
+    cache = {}
+    
+    define_method(method_name) do |*args|
+      cache[args] ||= original.bind(self).call(*args)
+    end
+  end
+end
+#+end_src
+
+* Testing Strategy
+
+** RSpec Configuration
+
+#+begin_src ruby :tangle spec/spec_helper.rb :mkdirp t
+RSpec.configure do |config|
+  config.expect_with :rspec do |expectations|
+    expectations.include_chain_clauses_in_custom_matcher_descriptions = true
+  end
+  
+  config.mock_with :rspec do |mocks|
+    mocks.verify_partial_doubles = true
+  end
+  
+  config.shared_context_metadata_behavior = :apply_to_host_groups
+  config.filter_run_when_matching :focus
+  config.example_status_persistence_file_path = "spec/examples.txt"
+  config.disable_monkey_patching!
+  config.warnings = true
+  
+  config.default_formatter = "doc" if config.files_to_run.one?
+  
+  config.order = :random
+  Kernel.srand config.seed
+end
+#+end_src
+
+* Documentation Strategy
+
+Each year's README should follow this template:
+
+#+begin_src markdown :tangle templates/YEAR_README.md
+# Advent of Code YEAR - Ruby
+
+## Completed Challenges
+
+| Day | Title | Part 1 | Part 2 | Notes |
+|-----|-------|--------|--------|-------|
+| 01  | TBD   | ⭐     | ⭐     |       |
+
+## Running Solutions
+```bash
+# Run specific day
+ruby YEAR/day01/solution.rb
+
+# Run tests
+rspec YEAR/day01/spec/
+
+# Run all tests for a year
+rspec YEAR/
+```
+
+## Interesting Patterns Used
+
+- Day XX: Pattern name and description
+
+## Performance Notes
+
+- Day XX: Timing and optimization details
+#+end_src
+
+* Build and Run Scripts
+
+#+begin_src bash :tangle bin/run.sh :shebang "#!/bin/bash" :mkdirp t
+#!/bin/bash
+# Run a specific day's solution
+
+YEAR=${1:-$(date +%Y)}
+DAY=$(printf "%02d" ${2:-1})
+
+cd "${YEAR}/day${DAY}" || exit 1
+ruby solution.rb
+#+end_src
+
+#+begin_src bash :tangle bin/test.sh :shebang "#!/bin/bash" :mkdirp t
+#!/bin/bash
+# Run tests for a specific day or year
+
+if [ -z "$1" ]; then
+  rspec
+elif [ -z "$2" ]; then
+  rspec "$1/"
+else
+  YEAR=$1
+  DAY=$(printf "%02d" $2)
+  rspec "${YEAR}/day${DAY}/spec/"
+fi
+#+end_src
+
+* Workflow
+
+** Daily Routine
+
+1. Fetch puzzle input (manual or via API)
+2. Create stub from template
+3. Write failing test with example
+4. Implement solution
+5. Run against actual input
+6. Optimize if needed
+7. Document interesting approaches
+
+** Git Workflow
+
+#+begin_src bash :tangle bin/commit_day.sh :shebang "#!/bin/bash" :mkdirp t
+#!/bin/bash
+YEAR=$1
+DAY=$(printf "%02d" $2)
+
+git add "${YEAR}/day${DAY}/"
+git commit -m "Add ${YEAR} Day ${DAY} solution
+
+⭐ Part 1 complete
+⭐ Part 2 complete"
+#+end_src
+
+* Meta
+
+** Project Statistics
+
+#+begin_src ruby :tangle bin/stats.rb :shebang "#!/usr/bin/env ruby"
+#!/usr/bin/env ruby
+
+years = Dir.glob('20*/').map { |d| d.delete_suffix('/') }.sort
+
+years.each do |year|
+  days = Dir.glob("#{year}/day*/solution.rb").length
+  puts "#{year}: #{days}/25 days"
+end
+#+end_src
+
+** Generate This File
+
+This org file can regenerate all its tangled outputs:
+
+#+begin_src emacs-lisp
+(org-babel-tangle)
+#+end_src
+
+Execute with =C-c C-v t= or =M-x org-babel-tangle=

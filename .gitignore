@@ -1,0 +1,75 @@
+# Ruby
+*.gem
+*.rbc
+/.config
+/coverage/
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/examples.txt
+/test/tmp/
+/test/version_tmp/
+/tmp/
+
+# Bundler
+/.bundle/
+/vendor/bundle/
+/lib/bundler/man/
+
+# RSpec
+.rspec_status
+
+# IDE and editors
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Secrets - NEVER COMMIT THESE
+.env
+.env.local
+.env.*.local
+.aoc_session
+*.pem
+*.key
+credentials.json
+secrets.yml
+
+# Advent of Code puzzle inputs (respect puzzle author's copyright)
+# Uncomment if you want to exclude inputs from version control
+# **/input.txt
+
+# Emacs
+\#*\#
+.\#*
+*.elc
+*~
+auto-save-list
+tramp
+.dir-locals-2.el
+
+# Org-mode generated files (keep in .gitignore if regenerated from tangle)
+# Uncomment to exclude tangled output from version control
+# bin/
+# lib/
+# spec/spec_helper.rb
+# templates/
+
+# jj internal
+# .jj/  # Usually you want to keep this
+
+# Build artifacts
+/doc/
+/rdoc/

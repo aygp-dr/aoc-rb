@@ -1,0 +1,126 @@
+#+TITLE: Advent of Code - Ruby
+#+AUTHOR: Jason Walsh
+#+OPTIONS: toc:2 num:nil
+
+#+HTML: <p align="center">
+#+HTML: <a href="https://www.ruby-lang.org/"><img src="https://img.shields.io/badge/Ruby-3.3.0-CC342D?logo=ruby&logoColor=white" alt="Ruby 3.3.0"></a>
+#+HTML: <a href="https://adventofcode.com/"><img src="https://img.shields.io/badge/Advent%20of%20Code-2015--2024-00CC00" alt="Advent of Code"></a>
+#+HTML: <a href="https://github.com/aygp-dr/aoc-rb/actions"><img src="https://github.com/aygp-dr/aoc-rb/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+#+HTML: <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+#+HTML: </p>
+
+#+HTML: <p align="center">
+#+HTML: <img src="https://img.shields.io/badge/Emacs-Literate_Programming-7F5AB6?logo=gnu-emacs&logoColor=white" alt="Emacs Literate Programming">
+#+HTML: <img src="https://img.shields.io/badge/org--mode-tangled-77AA99" alt="Org Mode">
+#+HTML: <img src="https://img.shields.io/badge/jj-colocated-FF6600" alt="jj VCS">
+#+HTML: </p>
+
+* About
+
+Ruby implementations for [[https://adventofcode.com/][Advent of Code]] puzzles from 2015-2024. This repository uses *literate programming* with Emacs Org-mode - the project setup and documentation are tangled from =setup.org=.
+
+* Quick Start
+
+#+begin_src bash
+# Clone the repository
+git clone https://github.com/aygp-dr/aoc-rb.git
+cd aoc-rb
+
+# Allow direnv (if using)
+direnv allow
+
+# Check dependencies and tangle/install
+gmake
+
+# Run tests
+gmake test
+#+end_src
+
+* Requirements
+
+| Tool      | Version    | Purpose                        |
+|-----------+------------+--------------------------------|
+| Ruby      | 3.3.0+     | Language runtime               |
+| Bundler   | 2.x        | Dependency management          |
+| Emacs     | 29+        | Org-mode tangling              |
+| direnv    | 2.x        | Environment management         |
+| GNU Make  | 4.x        | Build automation (=gmake=)     |
+| jj        | (optional) | Modern version control         |
+
+* Project Structure
+
+#+begin_example
+aoc-rb/
+├── setup.org         # Literate source (tangle to generate project)
+├── Makefile          # Build targets
+├── .envrc            # direnv configuration
+├── .dir-locals.el    # Emacs project settings
+├── Gemfile           # Ruby dependencies
+├── bin/              # Scripts
+├── lib/              # Shared utilities
+├── spec/             # RSpec configuration
+├── templates/        # Solution templates
+└── YYYY/             # Year directories
+    └── dayNN/        # Day solutions
+        ├── solution.rb
+        ├── input.txt
+        └── spec/
+#+end_example
+
+* Usage
+
+** Running Solutions
+
+#+begin_src bash
+# Setup a year's directory structure
+gmake setup-year YEAR=2024
+
+# Run a specific day
+ruby 2024/day01/solution.rb
+
+# Run tests for a day
+gmake test-day YEAR=2024 DAY=01
+
+# Run all tests for a year
+gmake test-year YEAR=2024
+#+end_src
+
+** Development Workflow
+
+1. Fetch puzzle input and save to =YYYY/dayNN/input.txt=
+2. Write tests in =YYYY/dayNN/spec/solution_spec.rb=
+3. Implement solution in =YYYY/dayNN/solution.rb=
+4. Run with =ruby YYYY/dayNN/solution.rb=
+
+* Makefile Targets
+
+| Target          | Description                           |
+|-----------------+---------------------------------------|
+| =all=           | Check deps, tangle, install (default) |
+| =deps=          | Verify all dependencies               |
+| =tangle=        | Tangle org files                      |
+| =install=       | Install Ruby gems                     |
+| =test=          | Run all tests                         |
+| =test-year=     | Run tests for a year                  |
+| =test-day=      | Run tests for a specific day          |
+| =setup-year=    | Generate year directory structure     |
+| =clean=         | Remove generated files                |
+| =help=          | Show available targets                |
+
+* Emacs Setup
+
+This project includes =.dir-locals.el= for seamless Emacs integration:
+
+- Ruby mode with RSpec and RuboCop
+- Org-mode with babel languages configured
+- Automatic formatting settings
+
+To tangle =setup.org= from Emacs: =C-c C-v t= or =M-x org-babel-tangle=
+
+* Progress
+
+See =setup.org= for the full progress table across all years.
+
+* License
+
+MIT License - see LICENSE file for details.
