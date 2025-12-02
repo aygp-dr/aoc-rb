@@ -1,0 +1,427 @@
+#+TITLE: Contributing to AoC-Ruby
+#+AUTHOR: AoC Ruby Solutions
+#+OPTIONS: toc:3 num:nil
+#+STARTUP: overview
+
+* Welcome
+
+Thank you for your interest in contributing! This repository combines:
+
+1. *Advent of Code Solutions* - Ruby implementations for AoC puzzles
+2. *Algorithm Study* - Connections to CLRS and Sedgewick
+3. *Ruby Mastery* - Exploring idioms and new features (Ruby 4.0)
+4. *Literate Programming* - Org-mode with Babel for documentation
+
+* Quick Start
+
+#+BEGIN_SRC bash
+# Clone and setup
+git clone https://github.com/aygp-dr/aoc-rb.git
+cd aoc-rb
+direnv allow  # if using direnv
+
+# Check dependencies
+gmake deps
+
+# Run tests
+gmake test
+
+# Run a specific solution
+ruby 2025/day01/solution.rb
+#+END_SRC
+
+* Reading List
+
+This is your curriculum for mastering both algorithms and Ruby.
+
+** Algorithms
+
+*** Primary Texts
+
+| Book | Authors | Edition | Focus |
+|------+---------+---------+-------|
+| *Introduction to Algorithms* | Cormen, Leiserson, Rivest, Stein | 4th (2022) | Comprehensive theory |
+| *Algorithms* | Sedgewick, Wayne | 4th (2011) | Practical implementation |
+
+**** CLRS (Introduction to Algorithms)
+
+- Publisher: MIT Press
+- ISBN: 978-0262046305
+- Companion: [[https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/][MIT Press Page]]
+- See: =algorithms-CLRS.org= for AoC chapter mappings
+
+Key chapters for AoC:
+- Ch 2: Getting Started (loop invariants, analysis)
+- Ch 10-14: Data Structures (stacks, queues, trees, hash tables)
+- Ch 15: Dynamic Programming
+- Ch 16: Greedy Algorithms
+- Ch 22-24: Graph Algorithms (BFS, DFS, shortest paths)
+- Ch 31: Number Theory (modular arithmetic, GCD)
+- Ch 32: String Matching
+
+**** Sedgewick & Wayne (Algorithms)
+
+- Publisher: Addison-Wesley
+- ISBN: 978-0321573513
+- Website: [[https://algs4.cs.princeton.edu/][algs4.cs.princeton.edu]]
+- Coursera: [[https://www.coursera.org/learn/algorithms-part1][Algorithms Part I]] (free)
+- See: =algorithms-sedgewick.org= for AoC mappings
+
+Key sections for AoC:
+- 1.5: Union-Find
+- 2.1-2.4: Sorting algorithms
+- 3.1-3.5: Searching (BST, hash tables)
+- 4.1-4.4: Graphs (DFS, BFS, shortest paths)
+- 5.1-5.3: Strings (tries, substring search)
+
+*** Online Resources
+
+| Resource | URL | Description |
+|----------+-----+-------------|
+| VisuAlgo | [[https://visualgo.net/]] | Algorithm visualizations |
+| Big-O Cheat Sheet | [[https://www.bigocheatsheet.com/]] | Complexity reference |
+| Algorithm Wiki | [[https://algorithm-wiki.csail.mit.edu/]] | MIT algorithm repository |
+| CP-Algorithms | [[https://cp-algorithms.com/]] | Competitive programming |
+
+** Ruby Language
+
+*** Ruby 4.0 (Preview)
+
+Ruby 4.0.0-preview2 was released November 17, 2025.
+
+- Release Notes: [[https://www.ruby-lang.org/en/news/2025/11/17/ruby-4-0-0-preview2-released/][Ruby 4.0.0-preview2]]
+- Downloads: [[https://www.ruby-lang.org/en/downloads/releases/][All Releases]]
+
+Key changes in Ruby 4.0:
+#+BEGIN_SRC ruby
+# *nil no longer calls nil.to_a (Feature #21047)
+def foo(*args) = args
+foo(*nil)  # Ruby 3.x: []
+           # Ruby 4.0: TypeError
+
+# Binding#local_variables excludes numbered params (Bug #21049)
+[1,2,3].map { _1 * 2 }
+binding.local_variables  # No longer includes _1
+
+# IO.select accepts Float::INFINITY (Feature #20610)
+IO.select([io], nil, nil, Float::INFINITY)
+
+# Unicode 17.0.0 and Emoji 17.0 (Features #19908, #20724, #21275)
+#+END_SRC
+
+*** Ruby 3.4 (Latest Stable)
+
+- Documentation: [[https://docs.ruby-lang.org/en/3.4/][Ruby 3.4 Docs]]
+- What's New: [[https://www.ruby-lang.org/en/news/2024/12/25/ruby-3-4-0-released/][Ruby 3.4.0 Release]]
+
+*** Ruby 3.3 (Current on FreeBSD)
+
+#+BEGIN_SRC sh
+# System info
+uname -a  # FreeBSD 14.3-RELEASE
+ruby --version  # ruby 3.3.8
+#+END_SRC
+
+- Documentation: [[https://docs.ruby-lang.org/en/3.3/][Ruby 3.3 Docs]]
+- Ractors: [[https://docs.ruby-lang.org/en/3.3/ractor_md.html][Ractor Documentation]]
+- Pattern Matching: [[https://docs.ruby-lang.org/en/3.3/syntax/pattern_matching_rdoc.html][Pattern Matching Syntax]]
+- Data Class: [[https://docs.ruby-lang.org/en/3.3/Data.html][Data Class]]
+
+*** Ractors Deep Dive
+
+Ractors provide true parallelism in Ruby (bypassing the GVL).
+
+#+BEGIN_SRC ruby
+# Basic Ractor usage
+r = Ractor.new { 1 + 2 }
+r.take  # => 3
+
+# Communication patterns
+# Push: send/receive (sender knows destination)
+r = Ractor.new { Ractor.receive * 2 }
+r.send(21)
+r.take  # => 42
+
+# Pull: yield/take (receiver knows sender)
+r = Ractor.new { Ractor.yield 'hello' }
+r.take  # => 'hello'
+
+# Shareable objects (can cross Ractor boundaries)
+# - Immutable: true, false, nil, Integers, Symbols, frozen Strings
+# - Classes and Modules
+# - Ractor.make_shareable(obj)
+#+END_SRC
+
+Key limitations:
+- No shared mutable state between Ractors
+- Global variables inaccessible from non-main Ractors
+- Some C extensions incompatible
+
+Documentation: [[https://docs.ruby-lang.org/en/3.3/ractor_md.html][Ractor Reference]]
+
+*** Books
+
+| Book | Authors | Year | Focus |
+|------+---------+------+-------|
+| *The Well-Grounded Rubyist* | Black, Leo | 2019 | Ruby fundamentals |
+| *Practical Object-Oriented Design* | Sandi Metz | 2018 | OOP in Ruby |
+| *Metaprogramming Ruby 2* | Paolo Perrotta | 2014 | Advanced Ruby |
+| *Ruby Under a Microscope* | Pat Shaughnessy | 2013 | Ruby internals |
+
+*** Online Learning
+
+| Resource | URL | Description |
+|----------+-----+-------------|
+| Ruby Koans | [[https://rubykoans.com/]] | Learn Ruby through tests |
+| Exercism Ruby Track | [[https://exercism.org/tracks/ruby]] | Mentored exercises |
+| Ruby Style Guide | [[https://rubystyle.guide/]] | Community conventions |
+| RubyDoc | [[https://ruby-doc.org/]] | Official documentation |
+
+** Org-mode and Literate Programming
+
+*** Org Babel
+
+Org Babel allows embedding executable code in Org documents.
+
+- Manual: [[https://orgmode.org/worg/org-contrib/babel/][Org Babel Introduction]]
+- Languages: [[https://orgmode.org/worg/org-contrib/babel/languages/][Supported Languages]]
+
+**** Elisp with Babel
+
+Reference: [[https://orgmode.org/worg/org-contrib/babel/languages/ob-doc-elisp.html][ob-doc-elisp]]
+
+Key concepts:
+
+#+BEGIN_SRC org
+,#+BEGIN_SRC elisp :lexical t :results value
+;; :lexical t enables lexical scoping (recommended)
+(let ((x 10))
+  (+ x 5))
+,#+END_SRC
+#+END_SRC
+
+Sessions:
+- Emacs IS the Elisp session (no setup needed)
+- Variables persist across blocks in same session
+- Use =:session name= for named sessions
+
+**** Ruby with Babel
+
+#+BEGIN_SRC org
+,#+BEGIN_SRC ruby :results output
+puts "Hello from Ruby!"
+,#+END_SRC
+
+,#+BEGIN_SRC ruby :session rb :results value
+# Persistent session
+@counter ||= 0
+@counter += 1
+,#+END_SRC
+#+END_SRC
+
+*** Tangling and Detangling
+
+| Concept | Description | Property |
+|---------+-------------+----------|
+| Tangle | Extract source from org to files | =:tangle filename= |
+| Detangle | Update org from edited source | =:comments link= |
+| Noweb | Reference other blocks | =<<block-name>>= |
+
+#+BEGIN_SRC org
+,#+PROPERTY: header-args:ruby :tangle solution.rb :comments link
+
+,#+BEGIN_SRC ruby
+def solve(input)
+  # Implementation
+end
+,#+END_SRC
+#+END_SRC
+
+Commands:
+- =C-c C-v t= or =M-x org-babel-tangle= - Tangle current file
+- =M-x org-babel-detangle= - Update org from tangled file
+
+*** Org Mode Resources
+
+| Resource | URL | Description |
+|----------+-----+-------------|
+| Org Manual | [[https://orgmode.org/manual/]] | Official manual |
+| Worg | [[https://orgmode.org/worg/]] | Community wiki |
+| Org Babel | [[https://orgmode.org/worg/org-contrib/babel/]] | Literate programming |
+| Org Roam | [[https://www.orgroam.com/]] | Knowledge management |
+
+** FreeBSD Development
+
+This repository is developed on FreeBSD. Relevant resources:
+
+| Resource | URL | Description |
+|----------+-----+-------------|
+| FreeBSD Handbook | [[https://docs.freebsd.org/en/books/handbook/]] | System administration |
+| DTrace Guide | [[https://docs.freebsd.org/en/books/dtrace/]] | Dynamic tracing |
+| Ports Collection | [[https://www.freebsd.org/ports/]] | Package management |
+
+FreeBSD advantages for Ruby:
+- Excellent =fork()= performance (for parallel gem)
+- DTrace probes available
+- POSIX-compliant IPC (sockets, shared memory, FIFOs)
+
+** Debugging and Profiling
+
+See =benchmarking.org= for detailed examples.
+
+| Tool | Type | Documentation |
+|------+------+---------------|
+| debug gem | Ruby | [[https://github.com/ruby/debug]] |
+| Ripper | Ruby | [[https://docs.ruby-lang.org/en/3.3/Ripper.html]] |
+| RubyVM::ISeq | Ruby | Built-in bytecode |
+| gdb | System | [[https://www.gnu.org/software/gdb/]] |
+| DTrace | System | [[https://docs.freebsd.org/en/books/dtrace/]] |
+
+* How to Contribute
+
+** Contribution Types
+
+1. *Solutions* - Add or improve AoC solutions
+2. *Documentation* - Improve explanations, add algorithm mappings
+3. *Puzzles* - Create custom puzzles for 2026-pre
+4. *Tools* - Enhance debugging/benchmarking utilities
+
+** Workflow
+
+#+BEGIN_SRC bash
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/aoc-rb.git
+cd aoc-rb
+
+# 2. Create feature branch
+git checkout -b feature/day15-solution
+
+# 3. Make changes
+# ...
+
+# 4. Run tests
+gmake test
+
+# 5. Commit with conventional commits
+git commit -m "feat(2024/day15): add warehouse woes solution"
+
+# 6. Push and create PR
+git push origin feature/day15-solution
+#+END_SRC
+
+** Commit Message Format
+
+Use [[https://www.conventionalcommits.org/][Conventional Commits]]:
+
+#+BEGIN_EXAMPLE
+type(scope): description
+
+[optional body]
+
+[optional footer]
+#+END_EXAMPLE
+
+Types: =feat=, =fix=, =docs=, =style=, =refactor=, =test=, =chore=
+
+Examples:
+#+BEGIN_EXAMPLE
+feat(2024/day15): add warehouse woes solution
+fix(2025/day02): correct multiplier edge case
+docs(algorithms): add CLRS chapter mapping for graphs
+#+END_EXAMPLE
+
+** Code Style
+
+- Follow [[https://rubystyle.guide/][Ruby Style Guide]]
+- Use =frozen_string_literal: true=
+- Prefer idiomatic Ruby over clever tricks
+- Document algorithm complexity in comments
+
+** Testing
+
+#+BEGIN_SRC bash
+# Run all tests
+gmake test
+
+# Run specific year
+gmake test-year YEAR=2024
+
+# Run specific day
+gmake test-day YEAR=2024 DAY=15
+#+END_SRC
+
+* Documentation Format
+
+All documentation in this repository should use *Org mode* (=.org=) rather than
+Markdown (=.md=), with exceptions for:
+
+- Throwaway/temporary notes
+- Benchmark results that may be regenerated
+- Files required by external tools (e.g., GitHub expects README.md in some contexts)
+
+** Files to Convert (TODO)
+
+These markdown files should be converted to Org mode:
+
+| Current File | Target |
+|--------------+--------|
+| =CONTRIBUTORS.md= | =CONTRIBUTORS.org= |
+| =2026-pre/day*/puzzle.md= | =puzzle.org= |
+| =templates/YEAR_README.md= | =YEAR_README.org= |
+| =2025/day02/PARALLELISM_DEEP_DIVE.md= | Keep (benchmark artifact) |
+| =2025/day02/PERFORMANCE_REPORT.md= | Keep (benchmark artifact) |
+| =2025/day02/BENCHMARK_RESULTS.md= | Keep (benchmark artifact) |
+
+** Why Org Mode?
+
+1. *Literate Programming* - Executable code blocks with Babel
+2. *Sessions* - Persistent state across blocks
+3. *Tangling* - Extract source files from documentation
+4. *Tables* - Native table editing and computation
+5. *Export* - PDF, HTML, Markdown, and more
+6. *Emacs Integration* - Agenda, links, TODO tracking
+
+* Project Structure
+
+#+BEGIN_EXAMPLE
+aoc-rb/
+├── CONTRIBUTING.org      # This file
+├── README.org            # Project overview
+├── algorithms-CLRS.org   # CLRS chapter mappings
+├── algorithms-sedgewick.org # Sedgewick mappings
+├── benchmarking.org      # Debugging/profiling guide
+├── lib/                  # Shared utilities
+│   └── aoc_debug.rb      # Debug helper module
+├── 2015/                 # Year directories
+│   └── day01/
+│       ├── solution.rb
+│       ├── input.txt
+│       └── spec/
+├── 2026-pre/             # Custom Ruby-focused puzzles
+│   ├── README.org
+│   └── day01/
+│       ├── puzzle.md
+│       ├── solution.rb
+│       ├── sample.txt
+│       └── input.txt
+└── templates/            # Solution templates
+#+END_EXAMPLE
+
+* Recognition
+
+Contributors will be recognized in CONTRIBUTORS.md.
+
+Significant contributions:
+- Multi-day solutions
+- Algorithm documentation
+- New 2026-pre puzzles
+- Tool improvements
+
+* License
+
+MIT License - see LICENSE file.
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

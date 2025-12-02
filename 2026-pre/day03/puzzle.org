@@ -1,0 +1,222 @@
+#+TITLE: Day 3: Pattern Vault
+#+AUTHOR: AoC 2026-pre
+#+PROPERTY: header-args:ruby :results output :exports both
+
+* The Vault of Forms
+
+The third chamber contains the legendary Pattern Vault - a massive door
+covered in crystalline locks, each responding only to data that matches
+its specific *pattern*.
+
+The vault keeper, an ancient golem named Matchimus, rumbles:
+
+#+BEGIN_QUOTE
+"The old ways used conditionals stacked upon conditionals. The new way
+uses *pattern matching* - a single expression that sees the shape of
+data. Master the patterns, unlock the vault."
+#+END_QUOTE
+
+* Part One
+
+The vault's locks accept JSON-like data structures. Each lock has a pattern
+it expects. Your task: parse each data entry and extract specific values
+based on its structure.
+
+Data entries look like:
+
+#+BEGIN_EXAMPLE
+{type: "gem", color: "ruby", value: 100}
+{type: "ore", material: "iron", weight: 50}
+{type: "gem", color: "emerald", value: 250}
+{type: "tool", name: "pickaxe", durability: 80}
+[1, 2, 3]
+{type: "gem", color: "sapphire", value: 175}
+#+END_EXAMPLE
+
+Rules:
+- For ={type: "gem", ...}= entries: extract the =value=
+- For ={type: "ore", ...}= entries: extract =weight * 2=
+- For ={type: "tool", ...}= entries: extract =durability=
+- For arrays: extract the sum of elements
+- For anything else: 0
+
+Sample calculation:
+- gem ruby: 100
+- ore iron: 50 × 2 = 100
+- gem emerald: 250
+- tool pickaxe: 80
+- array [1,2,3]: 6
+- gem sapphire: 175
+
+Total: *711*
+
+*What is the sum of extracted values?*
+
+** Ruby Idiom Hint
+
+Pattern matching with =case/in=:
+
+#+BEGIN_SRC ruby
+case data
+in {type: "gem", value:}
+  value
+in {type: "ore", weight:}
+  weight * 2
+in {type: "tool", durability:}
+  durability
+in [*elements]
+  elements.sum
+else
+  0
+end
+#+END_SRC
+
+* Part Two
+
+Matchimus's eyes glow brighter:
+
+#+BEGIN_QUOTE
+"Impressive! But the inner vault requires *nested patterns* and
+*guards*. The data grows more complex..."
+#+END_QUOTE
+
+Extended data format:
+
+#+BEGIN_EXAMPLE
+{type: "gem", color: "ruby", value: 100, origin: {mine: "north", depth: 50}}
+{type: "gem", color: "diamond", value: 1000, origin: {mine: "deep", depth: 500}}
+{type: "batch", items: [{value: 10}, {value: 20}, {value: 30}]}
+{type: "gem", color: "quartz", value: 25, origin: nil}
+#+END_EXAMPLE
+
+New rules:
+- Gems from depth > 100: value × 3 (rare deep gems)
+- Gems from depth ≤ 100: value × 1
+- Gems with no origin: value × 0.5 (surface finds)
+- Batches: sum all item values
+- Everything else: 0
+
+Sample:
+- gem ruby (depth 50): 100 × 1 = 100
+- gem diamond (depth 500): 1000 × 3 = 3000
+- batch: 10 + 20 + 30 = 60
+- gem quartz (no origin): 25 × 0.5 = 12
+
+Total: *3172*
+
+*What is the sum with the nested pattern rules?*
+
+** Ruby Idiom Hint
+
+Nested patterns with guards:
+
+#+BEGIN_SRC ruby
+case data
+in {type: "gem", value:, origin: {depth:}} if depth > 100
+  value * 3
+in {type: "gem", value:, origin: {depth:}}
+  value
+in {type: "gem", value:, origin: nil}
+  (value * 0.5).to_i
+in {type: "batch", items: [{value: v1}, {value: v2}, *rest]}
+  v1 + v2 + rest.sum { |i| i[:value] }
+end
+#+END_SRC
+
+* Key Pattern Matching Features
+
+| Feature | Syntax | Example |
+|---------+--------+---------|
+| =case/in= vs =case/when= | =in= for patterns | Pattern matching |
+| Hash capture | ={key:}= | Captures into =key= |
+| Array patterns | =[first, *rest]= | Destructure arrays |
+| Pin operator | =^var= | Match against value |
+| Guards | =if condition= | Conditional match |
+| Nested patterns | ={outer: {inner:}}= | Deep matching |
+| Alternatives | =:a \vert :b \vert :c= | Multiple options |
+| One-line | ==>=  | Ruby 3.0+ rightward |
+| Boolean check | =in= expr | Ruby 3.0+ predicate |
+
+* Pattern Matching Examples
+
+** Basic Patterns
+
+#+BEGIN_SRC ruby :tangle no
+# Hash pattern - captures value into same-named variable
+case {name: "Ruby", version: 3.3}
+in {name:, version:}
+  puts "#{name} #{version}"  # => "Ruby 3.3"
+end
+
+# Array pattern with splat
+case [1, 2, 3, 4, 5]
+in [first, *middle, last]
+  puts "first=#{first}, last=#{last}"  # => "first=1, last=5"
+end
+#+END_SRC
+
+** Pin Operator
+
+#+BEGIN_SRC ruby :tangle no
+expected_type = "gem"
+data = {type: "gem", value: 100}
+
+case data
+in {type: ^expected_type, value:}  # Match against expected_type's VALUE
+  puts "Found gem: #{value}"
+end
+#+END_SRC
+
+** Find Pattern (Ruby 3.0+)
+
+#+BEGIN_SRC ruby :tangle no
+data = [1, 2, {special: true, value: 42}, 4, 5]
+
+case data
+in [*, {special: true, value:}, *]
+  puts "Found special: #{value}"  # => 42
+end
+#+END_SRC
+
+* Sample Solution
+
+#+BEGIN_SRC ruby :tangle no
+def part1(entries)
+  entries.sum do |data|
+    case data
+    in {type: "gem", value:}
+      value
+    in {type: "ore", weight:}
+      weight * 2
+    in {type: "tool", durability:}
+      durability
+    in [*elements]
+      elements.sum
+    else
+      0
+    end
+  end
+end
+
+def part2(entries)
+  entries.sum do |data|
+    case data
+    in {type: "gem", value:, origin: {depth:}} if depth > 100
+      value * 3
+    in {type: "gem", value:, origin: {depth:}}
+      value
+    in {type: "gem", value:, origin: nil}
+      (value * 0.5).to_i
+    in {type: "batch", items:}
+      items.sum { |i| i[:value] || 0 }
+    else
+      0
+    end
+  end
+end
+#+END_SRC
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

@@ -1,0 +1,249 @@
+#+TITLE: Sedgewick & Wayne Algorithm Reference for Advent of Code
+#+AUTHOR: AoC Ruby Solutions
+#+STARTUP: overview
+
+* About This Reference
+
+Maps Advent of Code problems to chapters in:
+
+*Algorithms* (4th Edition, 2011)
+Robert Sedgewick and Kevin Wayne
+Addison-Wesley Professional
+
+Website: https://algs4.cs.princeton.edu/
+
+More practical and implementation-focused than CLRS, with Java code examples.
+
+* Book Structure Overview
+
+| Chapter | Topic                              | Key Algorithms            |
+|---------+------------------------------------+---------------------------|
+| 1       | Fundamentals                       | Union-Find, Bags, Stacks  |
+| 2       | Sorting                            | Mergesort, Quicksort      |
+| 3       | Searching                          | BST, Hash Tables, B-Trees |
+| 4       | Graphs                             | DFS, BFS, MST, Shortest   |
+| 5       | Strings                            | Tries, Regex, Compression |
+| 6       | Context                            | Applications              |
+
+* 2025 Problem Mappings
+
+** Day 01: Secret Entrance (Dial Rotation)
+
+*Algorithm Required*: None
+
+*Relevant Sedgewick Sections*:
+- None specifically - this is basic arithmetic
+
+*Notes*:
+This problem is pure simulation with modular arithmetic:
+
+#+BEGIN_SRC ruby
+position = (position + delta) % 100
+#+END_SRC
+
+No data structures beyond basic variables. No graph traversal, sorting, or searching.
+
+*What You Actually Need*:
+- Understanding of modulo operation
+- Ruby's Enumerable for clean iteration
+
+*Sedgewick Parallel*: Section 1.1 "Basic Programming Model" covers fundamentals,
+but even that's overkill for this problem.
+
+** Day 02: Gift Shop (Repeated Digit Pattern)
+
+*Algorithm Required*: None - math insight replaces brute force
+
+*Relevant Sedgewick Sections*:
+- Section 1.4 "Analysis of Algorithms" (understanding when brute force is unnecessary)
+
+*Notes*:
+The "algorithm" here is recognizing a mathematical pattern:
+
+#+BEGIN_SRC
+# A repeated digit number like 6464 is:
+# pattern × (10^d + 1) where d = digits in pattern
+# 64 × 101 = 6464
+#+END_SRC
+
+This is number theory, not algorithms. Sedgewick doesn't cover this because
+it's domain-specific mathematical insight rather than a general technique.
+
+*What You Actually Need*:
+- Arithmetic series sum formula: n(n+1)/2
+- Recognition that enumeration can be avoided with math
+
+*Performance Lesson*: Section 1.4's message applies - understand the problem
+structure before coding. O(1) math beats O(n) iteration.
+
+* Common AoC Patterns → Sedgewick Chapters
+
+| AoC Pattern               | Sedgewick Section | Notes                   |
+|---------------------------+-------------------+-------------------------|
+| Grid pathfinding          | 4.1-4.2 (BFS/DFS) | Most common AoC need    |
+| Shortest path (weighted)  | 4.4 (Dijkstra)    | Very common in AoC      |
+| Connected components      | 4.1 (DFS), 1.5 UF | Islands, regions        |
+| Topological sort          | 4.2               | Dependencies            |
+| String searching          | 5.3 (KMP, etc.)   | Pattern matching        |
+| Tries                     | 5.2               | Prefix trees            |
+| Priority queues           | 2.4               | For Dijkstra, A*        |
+| Union-Find                | 1.5               | Connectivity problems   |
+| Binary search             | 3.1               | Sorted data queries     |
+
+* When Sedgewick DOESN'T Apply
+
+Many AoC problems need:
+
+1. *Simulation* - Just follow the rules step by step
+2. *Math* - Formulas, not algorithms (GCD, modular inverse, etc.)
+3. *Parsing* - Regex, string manipulation
+4. *Ruby idioms* - Enumerable methods solve many problems elegantly
+
+Days 01-02 of 2025 are type 1 (simulation) and type 2 (math). No "algorithms."
+
+* Sedgewick's Java → Ruby Translation
+
+Sedgewick uses Java. Ruby equivalents:
+
+| Java (Sedgewick)          | Ruby Equivalent               |
+|---------------------------+-------------------------------|
+| =ArrayList<Integer>=      | =Array= or =[]=               |
+| =HashMap<K,V>=            | =Hash= or ={}=                |
+| =HashSet<E>=              | =Set.new= or =Hash= as set    |
+| =PriorityQueue<E>=        | Heap gem or sorted insertion  |
+| =Stack<E>=                | =Array= with =push/pop=       |
+| =Queue<E>=                | =Array= with =push/shift=     |
+| =for (int i=0; i<n; i++)= | =n.times { \|i\| }= or =(0...n).each= |
+| =Collections.sort(list)=  | =array.sort=                  |
+
+** Example: BFS in Java vs Ruby
+
+*** Sedgewick Java Style
+#+BEGIN_SRC java
+public void bfs(Graph G, int s) {
+    Queue<Integer> queue = new LinkedList<>();
+    boolean[] marked = new boolean[G.V()];
+    marked[s] = true;
+    queue.add(s);
+
+    while (!queue.isEmpty()) {
+        int v = queue.remove();
+        for (int w : G.adj(v)) {
+            if (!marked[w]) {
+                marked[w] = true;
+                queue.add(w);
+            }
+        }
+    }
+}
+#+END_SRC
+
+*** Ruby Translation
+#+BEGIN_SRC ruby
+def bfs(graph, start)
+  queue = [start]
+  visited = Set.new([start])
+
+  until queue.empty?
+    v = queue.shift
+    graph[v].each do |w|
+      next if visited.include?(w)
+      visited << w
+      queue << w
+    end
+  end
+
+  visited
+end
+#+END_SRC
+
+* Key Sedgewick Concepts for AoC
+
+** 1. Union-Find (Chapter 1.5)
+
+Useful for: connectivity, grouping, merging regions
+
+#+BEGIN_SRC ruby
+class UnionFind
+  def initialize(n)
+    @parent = (0...n).to_a
+    @rank = Array.new(n, 0)
+  end
+
+  def find(x)
+    @parent[x] = find(@parent[x]) if @parent[x] != x  # path compression
+    @parent[x]
+  end
+
+  def union(x, y)
+    px, py = find(x), find(y)
+    return if px == py
+    # union by rank
+    if @rank[px] < @rank[py]
+      @parent[px] = py
+    elsif @rank[px] > @rank[py]
+      @parent[py] = px
+    else
+      @parent[py] = px
+      @rank[px] += 1
+    end
+  end
+
+  def connected?(x, y)
+    find(x) == find(y)
+  end
+end
+#+END_SRC
+
+** 2. Priority Queue (Chapter 2.4)
+
+Useful for: Dijkstra, A*, simulation with events
+
+Ruby doesn't have a built-in heap. Options:
+- =gem install algorithms= (provides Heap)
+- =gem install priority_queue=
+- Use sorted array for small inputs
+- Implement binary heap
+
+** 3. Graph Representation (Chapter 4.1)
+
+#+BEGIN_SRC ruby
+# Adjacency list (most common for AoC)
+graph = Hash.new { |h, k| h[k] = [] }
+edges.each { |u, v| graph[u] << v; graph[v] << u }  # undirected
+
+# For grids (implicit graph)
+DIRS = [[0,1], [1,0], [0,-1], [-1,0]]
+def neighbors(r, c, grid)
+  DIRS.filter_map { |dr, dc|
+    nr, nc = r + dr, c + dc
+    [nr, nc] if nr.between?(0, grid.size-1) && nc.between?(0, grid[0].size-1)
+  }
+end
+#+END_SRC
+
+* Complexity Quick Reference (Sedgewick Style)
+
+Sedgewick uses tilde notation (~) for leading term:
+
+| Algorithm        | Time           | Space    |
+|------------------+----------------+----------|
+| Binary search    | ~lg N          | 1        |
+| Mergesort        | ~N lg N        | N        |
+| Quicksort        | ~N lg N (avg)  | lg N     |
+| Heapsort         | ~N lg N        | 1        |
+| BST search       | ~lg N (avg)    | N        |
+| Hash table       | ~1 (avg)       | N        |
+| BFS/DFS          | V + E          | V        |
+| Dijkstra (heap)  | E lg V         | V        |
+
+* Online Resources
+
+- Book site: https://algs4.cs.princeton.edu/
+- Visualizations: https://visualgo.net/
+- Princeton Coursera courses by Sedgewick (free)
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

@@ -1,0 +1,4 @@
+{type: "gem", color: "ruby", value: 100, origin: {mine: "north", depth: 50}}
+{type: "gem", color: "diamond", value: 1000, origin: {mine: "deep", depth: 500}}
+{type: "batch", items: [{value: 10}, {value: 20}, {value: 30}]}
+{type: "gem", color: "quartz", value: 25, origin: nil}

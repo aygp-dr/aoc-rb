@@ -1,0 +1,168 @@
+#+TITLE: CLRS Algorithm Reference for Advent of Code
+#+AUTHOR: AoC Ruby Solutions
+#+STARTUP: overview
+
+* About This Reference
+
+Maps Advent of Code problems to chapters in:
+
+*Introduction to Algorithms* (4th Edition, 2022)
+Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+MIT Press
+
+Also known as "CLRS" - the standard algorithms textbook.
+
+* Book Structure Overview
+
+| Part | Chapters | Topics                                    |
+|------+----------+-------------------------------------------|
+| I    | 1-5      | Foundations (analysis, growth, recurrence)|
+| II   | 6-9      | Sorting and Order Statistics              |
+| III  | 10-14    | Data Structures                           |
+| IV   | 15-16    | Advanced Design (DP, Greedy)              |
+| V    | 17-19    | Advanced Data Structures                  |
+| VI   | 20-22    | Graph Algorithms                          |
+| VII  | 23-26    | Selected Topics                           |
+| VIII | 27-35    | Advanced Topics                           |
+
+* 2025 Problem Mappings
+
+** Day 01: Secret Entrance (Dial Rotation)
+
+*Algorithm Required*: None - simple modular arithmetic
+
+*Relevant CLRS Sections*:
+- §31.1 Elementary number-theoretic notions (modular arithmetic basics)
+
+*Notes*:
+This problem doesn't require algorithms from CLRS. It's a straightforward
+simulation with modulo operation. The "algorithm" is just:
+
+#+BEGIN_SRC
+position = (position + delta) mod 100
+#+END_SRC
+
+*Ruby Focus*: Enumerable methods, not algorithmic complexity.
+
+** Day 02: Gift Shop (Repeated Digit Pattern)
+
+*Algorithm Required*: None - mathematical insight beats brute force
+
+*Relevant CLRS Sections*:
+- §31.1 Elementary number-theoretic notions
+- Chapter 4: Divide-and-Conquer (tangentially - reducing problem size)
+
+*Notes*:
+The brute-force approach (O(n)) can be replaced with a mathematical formula:
+
+#+BEGIN_SRC
+repeated_number = pattern × (10^d + 1)
+#+END_SRC
+
+This isn't really an "algorithm" - it's recognizing the mathematical structure.
+CLRS doesn't cover this specific insight; it's more number theory than algorithms.
+
+*Key Insight*: Sum of arithmetic series: n(n+1)/2
+- CLRS §A.1 covers summation formulas
+
+*Ruby Focus*: Strategy pattern, parallelism (Ractors), not algorithmic complexity.
+
+* Common AoC Problem Types → CLRS Chapters
+
+| AoC Pattern              | CLRS Chapter | Example Problems    |
+|--------------------------+--------------+---------------------|
+| Pathfinding (grids)      | 22 (BFS/DFS) | Many maze problems  |
+| Shortest path            | 24 (Dijkstra)| Weighted grids      |
+| Dynamic programming      | 15           | Subsequences, paths |
+| Greedy choices           | 16           | Scheduling, packing |
+| String matching          | 32           | Pattern finding     |
+| Graph traversal          | 22           | Dependencies, flow  |
+| Sorting/Searching        | 6-9          | Order statistics    |
+| Tree problems            | 12-14        | Parse trees, BST    |
+| Number theory            | 31           | Modular arithmetic  |
+| Combinatorics            | Appendix C   | Counting problems   |
+
+* When You DON'T Need CLRS
+
+Many AoC problems are solved with:
+
+1. *Simulation* - Just do what the problem says
+2. *Math insight* - Recognize a formula (not an algorithm)
+3. *Data structure choice* - Hash vs Array vs Set
+4. *Language idioms* - Ruby's Enumerable is often enough
+
+Days 01-02 of 2025 fall into categories 1-2. No "algorithms" needed.
+
+* Reading Recommendations by AoC Difficulty
+
+** Easy Problems (typically Day 1-10)
+- Chapter 1: Role of Algorithms (skim)
+- Chapter 2: Getting Started (insertion sort as example)
+- Chapter 10: Elementary Data Structures
+
+** Medium Problems (typically Day 11-18)
+- Chapter 15: Dynamic Programming
+- Chapter 16: Greedy Algorithms
+- Chapter 22: Elementary Graph Algorithms
+
+** Hard Problems (typically Day 19-25)
+- Chapter 24: Single-Source Shortest Paths
+- Chapter 25: All-Pairs Shortest Paths
+- Chapter 26: Maximum Flow (rare but appears)
+
+* CLRS Pseudocode vs Ruby
+
+CLRS uses procedural pseudocode. Here's how to translate:
+
+** CLRS Style
+#+BEGIN_SRC text
+INSERTION-SORT(A)
+  for j = 2 to A.length
+    key = A[j]
+    i = j - 1
+    while i > 0 and A[i] > key
+      A[i + 1] = A[i]
+      i = i - 1
+    A[i + 1] = key
+#+END_SRC
+
+** Ruby Translation (Idiomatic)
+#+BEGIN_SRC ruby
+def insertion_sort(arr)
+  (1...arr.length).each do |j|
+    key = arr[j]
+    i = j - 1
+    while i >= 0 && arr[i] > key
+      arr[i + 1] = arr[i]
+      i -= 1
+    end
+    arr[i + 1] = key
+  end
+  arr
+end
+#+END_SRC
+
+** Ruby Translation (More Idiomatic)
+#+BEGIN_SRC ruby
+# But in Ruby, you'd just use:
+arr.sort
+#+END_SRC
+
+* Complexity Analysis Quick Reference
+
+| Notation | Name         | Example                    |
+|----------+--------------+----------------------------|
+| O(1)     | Constant     | Hash lookup                |
+| O(log n) | Logarithmic  | Binary search              |
+| O(n)     | Linear       | Single pass                |
+| O(n log n)| Linearithmic | Merge sort                |
+| O(n²)    | Quadratic    | Nested loops               |
+| O(2^n)   | Exponential  | All subsets                |
+| O(n!)    | Factorial    | All permutations           |
+
+For AoC: Usually need O(n log n) or better for large inputs.
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

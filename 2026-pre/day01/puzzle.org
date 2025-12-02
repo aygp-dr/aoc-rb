@@ -1,0 +1,157 @@
+#+TITLE: Day 1: Crystal Sorting
+#+AUTHOR: AoC 2026-pre
+#+PROPERTY: header-args:ruby :results output :exports both
+
+* The First Chamber
+
+You enter the Ruby Mines through a narrow passage carved with ancient runes.
+The first chamber is filled with raw crystals scattered across the floor,
+each inscribed with cryptic data.
+
+The mine foreman, an elderly elf named Enumerix, greets you:
+
+#+BEGIN_QUOTE
+"Welcome, gem-coder! These crystals contain supply manifests from centuries
+past. To restore power to the mine, you must process them using the ancient
+art of *Enumerable*."
+#+END_QUOTE
+
+* Part One
+
+Each crystal contains a list of supply records. Each record has:
+- A *category* (single letter: F=food, T=tools, M=materials, G=gems)
+- A *quantity* (integer)
+- A *priority* (1-5, where 1 is highest)
+
+Example crystal data:
+
+#+BEGIN_EXAMPLE
+F:42:3
+T:17:1
+M:89:2
+F:23:1
+G:5:5
+T:31:2
+#+END_EXAMPLE
+
+The mine's power core needs the *total quantity of high-priority supplies*.
+High-priority means priority 1 or 2.
+
+For the example above:
+- =T:17:1= → priority 1, quantity 17 ✓
+- =M:89:2= → priority 2, quantity 89 ✓
+- =F:23:1= → priority 1, quantity 23 ✓
+- =T:31:2= → priority 2, quantity 31 ✓
+
+Total: 17 + 89 + 23 + 31 = *160*
+
+*What is the sum of quantities for all high-priority supplies?*
+
+** Ruby Idiom Hint
+
+The elegant solution uses =Enumerable= methods chained together:
+
+#+BEGIN_SRC ruby
+records
+  .select { |r| r.priority <= 2 }
+  .sum(&:quantity)
+#+END_SRC
+
+** CLRS Reference
+
+- Chapter 2: Getting Started (loop invariants for correctness)
+- No specific algorithm needed - this is Ruby idiom practice
+
+* Part Two
+
+Enumerix squints at the restored crystals:
+
+#+BEGIN_QUOTE
+"Excellent! But we also need inventory by category. The mine's sorting
+mechanisms require a *hash* mapping each category to its total quantity."
+#+END_QUOTE
+
+Using the same example:
+
+#+BEGIN_EXAMPLE
+F:42:3
+T:17:1
+M:89:2
+F:23:1
+G:5:5
+T:31:2
+#+END_EXAMPLE
+
+Expected output:
+
+#+BEGIN_SRC ruby
+{ "F" => 65, "T" => 48, "M" => 89, "G" => 5 }
+#+END_SRC
+
+But wait! The power core only accepts a *checksum*: multiply each
+category's total by its position (alphabetical order, 1-indexed), then sum.
+
+- F (1st): 65 × 1 = 65
+- G (2nd): 5 × 2 = 10
+- M (3rd): 89 × 3 = 267
+- T (4th): 48 × 4 = 192
+
+Checksum: 65 + 10 + 267 + 192 = *534*
+
+*What is the inventory checksum?*
+
+** Ruby Idiom Hint
+
+#+BEGIN_SRC ruby
+records
+  .group_by(&:category)
+  .transform_values { |rs| rs.sum(&:quantity) }
+  .sort
+  .each_with_index
+  .sum { |(cat, qty), idx| qty * (idx + 1) }
+#+END_SRC
+
+* Key Enumerable Methods
+
+This puzzle teaches:
+
+| Method            | Purpose                    |
+|-------------------+----------------------------|
+| =select= / =reject= | Filtering                |
+| =map=             | Transformation             |
+| =sum=             | Aggregation                |
+| =group_by=        | Categorization             |
+| =transform_values= | Hash value mapping        |
+| =each_with_index= | Iteration with position    |
+| Method chaining   | Readable pipelines         |
+
+* Sample Solution
+
+#+BEGIN_SRC ruby :tangle no
+Record = Struct.new(:category, :quantity, :priority, keyword_init: true)
+
+def parse(input)
+  input.strip.lines.map do |line|
+    cat, qty, pri = line.strip.split(':')
+    Record.new(category: cat, quantity: qty.to_i, priority: pri.to_i)
+  end
+end
+
+def part1(records)
+  records.select { |r| r.priority <= 2 }.sum(&:quantity)
+end
+
+def part2(records)
+  records
+    .group_by(&:category)
+    .transform_values { |rs| rs.sum(&:quantity) }
+    .sort
+    .each_with_index
+    .sum { |(_, qty), idx| qty * (idx + 1) }
+end
+#+END_SRC
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

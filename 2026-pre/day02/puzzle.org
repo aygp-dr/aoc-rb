@@ -1,0 +1,181 @@
+#+TITLE: Day 2: Gem Transformer
+#+AUTHOR: AoC 2026-pre
+#+PROPERTY: header-args:ruby :results output :exports both
+
+* The Transformation Chamber
+
+Deeper into the mines, you discover the Transformation Chamber - a vast hall
+where raw crystals are refined into magical gems. Ancient machines line the
+walls, each containing a transformation recipe.
+
+The chamber's guardian, a sprite named Blockara, explains:
+
+#+BEGIN_QUOTE
+"Each machine holds a *transformation function*. To restore power, you
+must apply these functions in sequence. But beware - the order matters,
+and some transformations are *composable*!"
+#+END_QUOTE
+
+* Part One
+
+The transformation recipes are encoded as simple operations:
+
+#+BEGIN_EXAMPLE
+double        # multiply by 2
+square        # raise to power 2
+add:5         # add 5
+sub:3         # subtract 3
+mod:7         # modulo 7
+neg           # negate (multiply by -1)
+#+END_EXAMPLE
+
+Each line of input is: =<initial_value> | <op1> <op2> <op3> ...=
+
+Apply each operation left-to-right to get the final value.
+
+Example:
+
+#+BEGIN_EXAMPLE
+10 | double add:5 square
+#+END_EXAMPLE
+
+- Start: 10
+- double: 10 × 2 = 20
+- add:5: 20 + 5 = 25
+- square: 25² = 625
+
+Result: *625*
+
+Sample input:
+
+#+BEGIN_EXAMPLE
+10 | double add:5 square
+7 | square sub:1 mod:8
+3 | neg double add:10
+#+END_EXAMPLE
+
+Results: 625 + 0 + 4 = *629*
+
+*What is the sum of all transformation results?*
+
+** Ruby Idiom Hint
+
+Build a hash of lambdas, then reduce:
+
+#+BEGIN_SRC ruby
+OPS = {
+  'double' => ->(x) { x * 2 },
+  'square' => ->(x) { x ** 2 },
+  # ... parametric ops use curry or closure
+}
+
+ops.reduce(initial) { |val, op| OPS[op].call(val) }
+#+END_SRC
+
+** Ruby 4.0 Note
+
+Ruby 4.0 changes how =Binding#local_variables= works with numbered parameters.
+This puzzle explores closures and captures, which are affected:
+
+#+BEGIN_SRC ruby
+# Numbered parameters _1, _2 still work in blocks
+[1,2,3].map { _1 * 2 }  # => [2, 4, 6]
+
+# But in Ruby 4.0, they're excluded from Binding introspection
+binding.local_variables  # No longer includes _1, _2, etc.
+#+END_SRC
+
+* Part Two
+
+Blockara nods approvingly:
+
+#+BEGIN_QUOTE
+"Now for the real magic. The ancient masters didn't just apply functions -
+they *composed* them into new functions. Given a composition rule,
+create the combined transformation and apply it to ALL inputs."
+#+END_QUOTE
+
+A composition rule looks like:
+
+#+BEGIN_EXAMPLE
+COMPOSE triple_plus_one = double add:1 add:-1 add:1
+#+END_EXAMPLE
+
+This defines a new operation =triple_plus_one= that does double, add:1, add:-1, add:1
+(effectively: double then add 1... wait, that's 2x+1, not 3x+1 - the naming is
+a puzzle hint!)
+
+After all COMPOSE lines, apply the FINAL composed function to each input value.
+
+Example:
+
+#+BEGIN_EXAMPLE
+COMPOSE mystery = double add:1
+5
+10
+15
+#+END_EXAMPLE
+
+- mystery(5) = 5 × 2 + 1 = 11
+- mystery(10) = 10 × 2 + 1 = 21
+- mystery(15) = 15 × 2 + 1 = 31
+
+Sum: *63*
+
+*What is the sum after applying the composed transformation?*
+
+** Ruby Idiom Hint
+
+Compose procs using =>>= or =<<=:
+
+#+BEGIN_SRC ruby
+double = ->(x) { x * 2 }
+add_one = ->(x) { x + 1 }
+
+mystery = double >> add_one  # double first, then add_one
+# OR
+mystery = add_one << double  # add_one after double
+
+[5, 10, 15].sum { |n| mystery.call(n) }
+#+END_SRC
+
+* Key Block/Proc/Lambda Concepts
+
+This puzzle teaches:
+
+| Concept | Syntax | Description |
+|---------+--------+-------------|
+| Stabby lambda | =->= | Modern lambda syntax |
+| Proc vs Lambda | =Proc.new= vs =lambda= | Argument checking differs |
+| Invocation | =.call=, =.()=, =[]=  | Three ways to call |
+| Composition | =>>=, =<<=  | Chain procs (Ruby 2.6+) |
+| Closures | =var= in block | Capture outer variables |
+| Curry | =.curry= | Partial application |
+| Method to proc | =method(:name)= | Convert method to callable |
+
+* Sample Solution
+
+#+BEGIN_SRC ruby :tangle no
+OPERATIONS = {
+  'double' => ->(x) { x * 2 },
+  'square' => ->(x) { x ** 2 },
+  'neg'    => ->(x) { -x }
+}
+
+def parametric_op(name, param)
+  case name
+  when 'add' then ->(x) { x + param }
+  when 'sub' then ->(x) { x - param }
+  when 'mod' then ->(x) { x % param }
+  end
+end
+
+def compose_lambdas(ops)
+  ops.reduce(->(x) { x }) { |composed, op| composed >> op }
+end
+#+END_SRC
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

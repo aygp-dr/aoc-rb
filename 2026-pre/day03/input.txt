@@ -1,0 +1,20 @@
+{type: "gem", color: "ruby", value: 150, origin: {mine: "eastern", depth: 75}}
+{type: "ore", material: "gold", weight: 30}
+{type: "gem", color: "diamond", value: 800, origin: {mine: "abyss", depth: 350}}
+{type: "tool", name: "drill", durability: 95}
+[5, 10, 15, 20]
+{type: "gem", color: "emerald", value: 200, origin: {mine: "forest", depth: 25}}
+{type: "batch", items: [{value: 50}, {value: 75}, {value: 25}]}
+{type: "gem", color: "opal", value: 125, origin: nil}
+{type: "ore", material: "silver", weight: 45}
+{type: "gem", color: "topaz", value: 175, origin: {mine: "mountain", depth: 150}}
+[100, 200]
+{type: "tool", name: "lantern", durability: 60}
+{type: "gem", color: "amethyst", value: 90, origin: {mine: "cave", depth: 40}}
+{type: "batch", items: [{value: 15}, {value: 35}]}
+{type: "gem", color: "garnet", value: 600, origin: {mine: "depths", depth: 275}}
+{type: "ore", material: "copper", weight: 80}
+{type: "gem", color: "pearl", value: 50, origin: nil}
+{type: "tool", name: "rope", durability: 40}
+[7, 14, 21]
+{type: "gem", color: "jade", value: 300, origin: {mine: "eastern", depth: 120}}

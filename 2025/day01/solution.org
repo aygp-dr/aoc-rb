@@ -1,10 +1,10 @@
 #+TITLE: Advent of Code 2025 - Day 01: Secret Entrance
 #+AUTHOR: AoC Solutions
-#+PROPERTY: header-args :results output :exports both
-#+PROPERTY: header-args:elisp :lexical t
-#+PROPERTY: header-args:sh :tangle solve.sh :shebang "#!/bin/sh"
-#+PROPERTY: header-args:ruby :tangle solution_literate.rb :shebang "#!/usr/bin/env ruby"
-#+PROPERTY: header-args:python :tangle solution.py :shebang "#!/usr/bin/env python3"
+#+PROPERTY: header-args :results output :exports both :comments link
+#+PROPERTY: header-args:elisp :lexical t :comments link
+#+PROPERTY: header-args:sh :tangle solve.sh :shebang "#!/bin/sh" :comments link
+#+PROPERTY: header-args:ruby :tangle solution_literate.rb :shebang "#!/usr/bin/env ruby" :comments link
+#+PROPERTY: header-args:python :tangle solution.py :shebang "#!/usr/bin/env python3" :comments link
 
 * Tangling
 
@@ -25,6 +25,17 @@ This will create:
 - =solution_literate.rb= - Ruby solution
 - =solve.sh= - Shell/awk solution
 - =sample.in= - Sample input data
+
+** Detangling
+
+The =:comments link= property adds source links to tangled files, enabling detangle.
+To update this org file from edited source files:
+
+#+BEGIN_SRC elisp :results silent :tangle no
+(org-babel-detangle)
+#+END_SRC
+
+Or open a tangled file and run =M-x org-babel-detangle=.
 
 * Problem Description
 

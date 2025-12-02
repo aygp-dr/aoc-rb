@@ -1,0 +1,221 @@
+#+TITLE: Advent of Code 2026 (Pre-Season): The Ruby Mines
+#+AUTHOR: Custom Ruby-Focused Puzzles
+#+OPTIONS: toc:2 num:nil
+
+* Goals for 2026
+
+This pre-season aims to:
+
+1. *Master Ruby 4.0* - Explore new features from Ruby 4.0 (preview2 released Nov 2025)
+2. *Learn CLRS Algorithms* - Map classic algorithms to Ruby implementations
+3. *Build Intuition* - Know when idioms beat algorithms (and vice versa)
+
+** Ruby 4.0 Features to Explore
+
+Ruby 4.0.0-preview2 (released 17 Nov 2025) brings:
+
+| Feature                          | Details                                    | Day |
+|----------------------------------+--------------------------------------------+-----|
+| =*nil= no longer calls =to_a=    | Breaking change, cleaner semantics         |  -- |
+| Binding numbered params change   | =_1=, =_2= no longer in local_variables    |  02 |
+| =IO.select= accepts =Float::INFINITY= | Infinite timeout support              |  17 |
+| Unicode 17.0.0                   | String/Regexp updates, Emoji 17.0          |  11 |
+
+#+BEGIN_SRC ruby
+# Ruby 4.0: *nil behavior change
+def foo(*args) = args
+foo(*nil)  # Ruby 3.x: [] (called nil.to_a)
+           # Ruby 4.0: TypeError (no implicit conversion)
+
+# Ruby 4.0: Numbered parameters in Binding
+[1,2,3].map { _1 * 2 }  # Still works
+binding.local_variables  # No longer includes _1, _2, etc.
+#+END_SRC
+
+** CLRS Algorithm Integration
+
+Each puzzle will reference relevant CLRS chapters:
+
+| Algorithm Category | CLRS Chapters | Puzzle Days |
+|--------------------+---------------+-------------|
+| Sorting            | 6-9           | 01, 14      |
+| Data Structures    | 10-14         | 06, 15      |
+| Dynamic Programming| 15            | 09, 21      |
+| Greedy Algorithms  | 16            | 16          |
+| Graph Algorithms   | 22-24         | 04, 19, 20  |
+| String Algorithms  | 32            | 11, 12      |
+| Number Theory      | 31            | 13          |
+
+See =algorithms-CLRS.org= and =algorithms-sedgewick.org= for detailed mappings.
+
+* The Story
+
+Deep beneath the Polar Workshop lies the *Ruby Mines* - an ancient cavern system
+where magical gemstones power Santa's entire operation. Each gem contains frozen
+algorithms from the dawn of computing, and only those fluent in Ruby can unlock
+their power.
+
+This year, the mine's computational crystals have become corrupted! You must
+traverse 25 chambers, each requiring mastery of a different Ruby idiom to restore
+the gems to their original brilliance.
+
+* Theme: Ruby Idiom Mastery + CLRS Algorithms
+
+Each puzzle teaches a Ruby idiom AND references classic algorithm concepts:
+
+| Day | Chamber              | Ruby Focus                  | CLRS Chapter            | Ruby 4.0 |
+|-----+----------------------+-----------------------------+-------------------------+----------|
+|  01 | Crystal Sorting      | Enumerable methods          | Ch 2: Getting Started   |          |
+|  02 | Gem Transformer      | Blocks, Procs, Lambdas      | --                      | Binding  |
+|  03 | Pattern Vault        | Pattern Matching (case/in)  | --                      |          |
+|  04 | Fiber Caverns        | Fibers and Enumerators      | Ch 22: Graph BFS/DFS    |          |
+|  05 | Method Mine          | Method objects, send        | --                      |          |
+|  06 | Struct Sanctum       | Struct, Data (Ruby 3.2+)    | Ch 10: Data Structures  |          |
+|  07 | Mixin Maze           | Modules, include, prepend   | --                      |          |
+|  08 | Refinement Rifts     | Refinements                 | --                      |          |
+|  09 | Lazy River           | Lazy enumerables            | Ch 15: Dynamic Prog     |          |
+|  10 | Hash Hollows         | Hash default_proc, merge    | Ch 11: Hash Tables      |          |
+|  11 | String Stalactites   | String, encoding, heredocs  | Ch 32: String Matching  | Unicode  |
+|  12 | Regex Rapids         | Regex, named captures       | Ch 32: String Matching  |          |
+|  13 | Symbol Springs       | Symbols, to_proc            | Ch 31: Number Theory    |          |
+|  14 | Array Abyss          | Array: zip, transpose       | Ch 8: Sorting in Linear |          |
+|  15 | Set Sanctuary        | Set operations              | Ch 14: Augmenting DS    |          |
+|  16 | Time Tunnels         | Date, Time, zones           | Ch 16: Greedy           |          |
+|  17 | File Forges          | File I/O, Pathname, glob    | Ch 18: B-Trees          | IO.select|
+|  18 | Exception Excavation | Exceptions, ensure, retry   | --                      |          |
+|  19 | Thread Treasury      | Threads, Mutex, Queue       | Ch 22: Elementary Graph |          |
+|  20 | Ractor Repository    | Ractors for parallelism     | Ch 27: Multithreaded    |          |
+|  21 | DSL Depths           | DSLs, instance_eval         | Ch 15: DP (memoization) |          |
+|  22 | Metaprogramming Mine | define_method, method_missing| --                     |          |
+|  23 | ObjectSpace Oasis    | ObjectSpace, GC             | Ch 17: Amortized        |          |
+|  24 | C Extension Caves    | FFI, native extensions      | --                      |          |
+|  25 | Grand Unification    | All idioms combined         | Multiple                |          |
+
+* Difficulty Progression
+
+- *Days 1-5*: Core Ruby (beginner-friendly, essential idioms)
+- *Days 6-10*: Intermediate Ruby (structural patterns)
+- *Days 11-15*: Data Processing (strings, collections)
+- *Days 16-20*: Systems Ruby (I/O, concurrency)
+- *Days 21-25*: Advanced Ruby (metaprogramming, DSLs)
+
+* Puzzle Format
+
+Each day follows the Advent of Code format:
+
+1. *Story Introduction* - Narrative setting the scene
+2. *Part 1* - Core problem using the day's idiom
+3. *Part 2* - Extension that deepens understanding
+4. *Sample Input* - Small test case with known answer
+5. *Solution Template* - Skeleton code to guide approach
+
+* Ruby Version Requirements
+
+#+BEGIN_SRC sh
+# Check your Ruby version
+ruby --version
+
+# For full 2026-pre experience:
+# - Ruby 3.3+: Pattern matching, Ractors, Data class
+# - Ruby 4.0-preview2: Breaking changes, new features
+
+# Install Ruby 4.0 preview (via ruby-install or rbenv)
+# ruby-install ruby 4.0.0-preview2
+# rbenv install 4.0.0-preview2
+#+END_SRC
+
+| Ruby Version | Compatibility         | Notes                           |
+|--------------+-----------------------+---------------------------------|
+| 3.3.x        | Full (current)        | All puzzles work                |
+| 4.0-preview2 | Full + new features   | Days 02, 11, 17 use 4.0 features|
+| 3.2.x        | Most puzzles          | No Data class, older patterns   |
+| < 3.2        | Limited               | Missing pattern matching guards |
+
+* Running Solutions
+
+#+begin_src bash
+# Run a specific day
+ruby 2026-pre/day01/solution.rb
+
+# Run with sample input
+ruby 2026-pre/day01/solution.rb sample.txt
+
+# Run tests
+gmake test-day YEAR=2026-pre DAY=01
+
+# Run with Ruby 4.0 (if installed)
+ruby-4.0 2026-pre/day02/solution.rb
+#+end_src
+
+* Progress Tracking
+
+| Day | Part 1 | Part 2 | Ruby Idiom     | CLRS Read | Ruby 4.0 Tested |
+|-----+--------+--------+----------------+-----------+-----------------|
+|  01 | [X]    | [X]    | Enumerable     | [ ]       | --              |
+|  02 | [X]    | [X]    | Blocks/Procs   | --        | [ ]             |
+|  03 | [X]    | [X]    | Pattern Match  | --        | --              |
+|  04 | [ ]    | [ ]    | Fibers         | [ ] Ch22  | --              |
+|  05 | [ ]    | [ ]    | Methods        | --        | --              |
+|  06 | [ ]    | [ ]    | Struct/Data    | [ ] Ch10  | --              |
+|  09 | [ ]    | [ ]    | Lazy Enum      | [ ] Ch15  | --              |
+|  10 | [ ]    | [ ]    | Hash           | [ ] Ch11  | --              |
+|  11 | [ ]    | [ ]    | Strings        | [ ] Ch32  | [ ]             |
+|  17 | [ ]    | [ ]    | File I/O       | [ ] Ch18  | [ ]             |
+|  20 | [ ]    | [ ]    | Ractors        | [ ] Ch27  | --              |
+
+* Why Custom Puzzles?
+
+Real AoC puzzles test algorithmic thinking but don't specifically target Ruby
+idioms. These puzzles are designed to:
+
+1. *Teach Ruby* - Each puzzle requires a specific idiom for elegant solution
+2. *Learn Algorithms* - Connect CLRS theory to practical Ruby implementations
+3. *Explore Ruby 4.0* - Test new features before they're mainstream
+4. *Build Intuition* - Learn when idioms beat algorithms (and vice versa)
+5. *Prepare for AoC* - Build your Ruby toolkit before December
+
+* Reading List
+
+** Required Texts
+
+1. *CLRS* - Introduction to Algorithms (4th Edition)
+   - Cormen, Leiserson, Rivest, Stein
+   - MIT Press, 2022
+   - See =algorithms-CLRS.org= for chapter mappings
+
+2. *Sedgewick* - Algorithms (4th Edition)
+   - Robert Sedgewick, Kevin Wayne
+   - Addison-Wesley, 2011
+   - https://algs4.cs.princeton.edu/
+   - See =algorithms-sedgewick.org= for mappings
+
+** Ruby References
+
+1. *Ruby 4.0 Release Notes*
+   - https://www.ruby-lang.org/en/news/2025/11/17/ruby-4-0-0-preview2-released/
+
+2. *Ruby Documentation*
+   - https://ruby-doc.org/
+
+3. *The Well-Grounded Rubyist* (3rd Edition)
+   - David A. Black, Joseph Leo III
+   - Manning, 2019
+
+** Online Resources
+
+- Visualgo: https://visualgo.net/ (algorithm visualizations)
+- Big-O Cheat Sheet: https://www.bigocheatsheet.com/
+- Ruby Koans: https://rubykoans.com/ (Ruby practice)
+
+* Contributing
+
+Found a puzzle idea that showcases a Ruby idiom? Add it!
+
+The best puzzles:
+- Have a clear "aha!" moment when the right idiom is used
+- Are solvable without the idiom (but painfully)
+- Teach something genuinely useful
+
+* License
+
+MIT - These are learning exercises, share freely!

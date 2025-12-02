@@ -1,0 +1,6 @@
+{type: "gem", color: "ruby", value: 100}
+{type: "ore", material: "iron", weight: 50}
+{type: "gem", color: "emerald", value: 250}
+{type: "tool", name: "pickaxe", durability: 80}
+[1, 2, 3]
+{type: "gem", color: "sapphire", value: 175}

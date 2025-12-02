@@ -1,0 +1,714 @@
+#+TITLE: Ruby Debugging & Benchmarking on FreeBSD
+#+AUTHOR: AoC Ruby Solutions
+#+PROPERTY: header-args:ruby :results output :exports both
+#+PROPERTY: header-args:sh :results output :exports both
+
+* System Information
+
+#+BEGIN_SRC sh
+uname -a
+#+END_SRC
+
+#+RESULTS:
+: FreeBSD aygp-dr 14.3-RELEASE FreeBSD 14.3-RELEASE releng/14.3-n269617-2d4a54cc5023 GENERIC amd64
+
+#+BEGIN_SRC sh
+ruby --version
+#+END_SRC
+
+#+RESULTS:
+: ruby 3.3.8 (2025-04-09 revision b200bad6cd) [amd64-freebsd14]
+
+#+BEGIN_SRC sh
+sysctl hw.model hw.ncpu hw.physmem
+#+END_SRC
+
+#+RESULTS:
+: hw.model: Intel(R) N95
+: hw.ncpu: 4
+: hw.physmem: 16463011840
+
+* Available Tools Summary
+
+| Tool               | Type          | Available | Purpose                          |
+|--------------------+---------------+-----------+----------------------------------|
+| RubyVM::ISeq       | Built-in      | Yes       | Bytecode disassembly             |
+| Ripper             | Built-in      | Yes       | AST parsing, lexing              |
+| TracePoint         | Built-in      | Yes       | Execution tracing                |
+| ObjectSpace        | Built-in      | Yes       | Memory introspection             |
+| Coverage           | Built-in      | Yes       | Code coverage                    |
+| Benchmark          | Stdlib        | Yes       | Basic timing                     |
+| debug gem          | Gem           | Yes       | Interactive debugger             |
+| parser gem         | Gem           | Yes       | Advanced AST manipulation        |
+| ast gem            | Gem           | Yes       | AST utilities                    |
+| gdb                | System        | Yes       | Native debugger                  |
+| lldb               | System        | Yes       | LLVM debugger                    |
+| dtrace             | System        | Yes       | Dynamic tracing (FreeBSD)        |
+
+* Part 1: AST and Bytecode Analysis
+
+** Ripper: Built-in AST Parser
+
+Ripper is Ruby's built-in parser that exposes the AST without executing code.
+
+#+BEGIN_SRC ruby
+require 'ripper'
+require 'pp'
+
+code = <<~RUBY
+  def solve(input)
+    input.lines.map(&:to_i).sum
+  end
+RUBY
+
+puts "=== Source Code ==="
+puts code
+puts
+puts "=== S-expression AST ==="
+pp Ripper.sexp(code)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+=== Source Code ===
+def solve(input)
+  input.lines.map(&:to_i).sum
+end
+
+=== S-expression AST ===
+[:program,
+ [[:def,
+   [:@ident, "solve", [1, 4]],
+   [:paren, [:params, [[:@ident, "input", [1, 10]]], nil, nil, nil, nil, nil, nil]],
+   [:bodystmt,
+    [[:method_add_block,
+      [:call,
+       [:call, [:vcall, [:@ident, "input", [2, 2]]], :".", [:@ident, "lines", [2, 8]]],
+       :".",
+       [:@ident, "map", [2, 14]]],
+      [:brace_block,
+       nil,
+       [[:symbol_literal, [:symbol, [:@ident, "to_i", [2, 19]]]]]]]],
+    nil,
+    nil,
+    nil]]]]
+#+end_example
+
+** RubyVM::InstructionSequence: Bytecode Disassembly
+
+View the YARV (Yet Another Ruby VM) bytecode instructions.
+
+#+BEGIN_SRC ruby
+code = <<~RUBY
+  def solve(input)
+    input.lines.map(&:to_i).sum
+  end
+RUBY
+
+iseq = RubyVM::InstructionSequence.compile(code)
+puts iseq.disasm
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+== disasm: #<ISeq:<compiled>@<compiled>:1 (1,0)-(3,3)>
+0000 definemethod                           :solve, solve             (   1)[Li]
+0003 putobject                              :solve
+0005 leave
+
+== disasm: #<ISeq:solve@<compiled>:1 (1,0)-(3,3)>
+local table (size: 1, argc: 1 [opts: 0, rest: -1, post: 0, block: -1, kw: -1@-1, kwrest: -1])
+[ 1] input@0<Arg>
+0000 getlocal_WC_0                          input@0                   (   2)[LiCa]
+0002 opt_send_without_block                 <calldata!mid:lines, argc:0, ARGS_SIMPLE>
+0004 putobject                              :to_i
+0006 send                                   <calldata!mid:map, argc:0, ARGS_BLOCKARG>, nil
+0009 opt_send_without_block                 <calldata!mid:sum, argc:0, ARGS_SIMPLE>
+0011 leave                                                            (   3)[Re]
+#+end_example
+
+** Lexical Token Analysis
+
+#+BEGIN_SRC ruby
+require 'ripper'
+
+code = 'numbers.select { |n| n > 5 }.sum'
+
+puts "Code: #{code}"
+puts
+puts "Tokens:"
+Ripper.lex(code).each do |pos, type, token, state|
+  printf "  %-15s %-20s %s\n", type, token.inspect, state
+end
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Code: numbers.select { |n| n > 5 }.sum
+
+Tokens:
+  on_ident         "numbers"            END
+  on_period        "."                  DOT
+  on_ident         "select"             ARG
+  on_sp            " "                  ARG
+  on_lbrace        "{"                  BEG|LABEL
+  on_sp            " "                  BEG|LABEL
+  on_op            "|"                  BEG|LABEL
+  on_ident         "n"                  ARG
+  on_op            "|"                  BEG
+  on_sp            " "                  BEG
+  on_ident         "n"                  END
+  on_sp            " "                  END
+  on_op            ">"                  BEG
+  on_sp            " "                  BEG
+  on_int           "5"                  END
+  on_sp            " "                  END
+  on_rbrace        "}"                  END
+  on_period        "."                  DOT
+  on_ident         "sum"                ARG
+#+end_example
+
+* Part 2: Execution Tracing
+
+** TracePoint: Built-in Execution Tracer
+
+TracePoint hooks into Ruby's execution to trace calls, returns, line execution, etc.
+
+#+BEGIN_SRC ruby
+def fibonacci(n)
+  return n if n <= 1
+  fibonacci(n - 1) + fibonacci(n - 2)
+end
+
+# Create tracer for calls only
+call_trace = []
+tracer = TracePoint.new(:call, :return) do |tp|
+  if tp.defined_class.to_s.include?('Object')
+    indent = '  ' * call_trace.count { |e| e == :call }
+    if tp.event == :call
+      call_trace << :call
+      puts "#{indent}→ #{tp.method_id}(#{tp.binding.local_variables.map { |v| "#{v}=#{tp.binding.local_variable_get(v)}" }.join(', ')})"
+    else
+      call_trace.pop
+      puts "#{indent}← #{tp.method_id} => #{tp.return_value}"
+    end
+  end
+end
+
+puts "Tracing fibonacci(4):"
+tracer.enable { fibonacci(4) }
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Tracing fibonacci(4):
+→ fibonacci(n=4)
+  → fibonacci(n=3)
+    → fibonacci(n=2)
+      → fibonacci(n=1)
+      ← fibonacci => 1
+      → fibonacci(n=0)
+      ← fibonacci => 0
+    ← fibonacci => 1
+    → fibonacci(n=1)
+    ← fibonacci => 1
+  ← fibonacci => 2
+  → fibonacci(n=2)
+    → fibonacci(n=1)
+    ← fibonacci => 1
+    → fibonacci(n=0)
+    ← fibonacci => 0
+  ← fibonacci => 1
+← fibonacci => 3
+#+end_example
+
+** Line-by-Line Tracing
+
+#+BEGIN_SRC ruby
+code = <<~'RUBY'
+  position = 50
+  rotations = ['R29', 'L43', 'R6']
+
+  rotations.each do |rot|
+    dir = rot[0]
+    amount = rot[1..].to_i
+    if dir == 'L'
+      position -= amount
+    else
+      position += amount
+    end
+    position %= 100
+  end
+
+  position
+RUBY
+
+# Execute with line tracing
+puts "=== Line-by-Line Execution ==="
+line_no = 0
+tracer = TracePoint.new(:line) do |tp|
+  line_no += 1
+  next if line_no > 20  # Limit output
+  src_line = code.lines[tp.lineno - 1]&.strip || ''
+  vars = tp.binding.local_variables
+    .reject { |v| v == :_ }
+    .map { |v| "#{v}=#{tp.binding.local_variable_get(v).inspect}" }
+    .join(', ')
+  printf "%2d: %-35s | %s\n", tp.lineno, src_line[0..34], vars
+end
+
+result = tracer.enable { eval(code) }
+puts "..."
+puts "Result: #{result}"
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+=== Line-by-Line Execution ===
+ 1: position = 50                          |
+ 2: rotations = ['R29', 'L43', 'R6']       | position=50
+ 4: rotations.each do |rot|                | position=50, rotations=["R29", "L43", "R6"]
+ 5: dir = rot[0]                           | position=50, rotations=["R29", "L43", "R6"], rot="R29"
+ 6: amount = rot[1..].to_i                 | position=50, rotations=["R29", "L43", "R6"], rot="R29", dir="R"
+ 7: if dir == 'L'                          | position=50, rotations=["R29", "L43", "R6"], rot="R29", dir="R", amount=29
+10: position += amount                     | position=50, rotations=["R29", "L43", "R6"], rot="R29", dir="R", amount=29
+12: position %= 100                        | position=79, rotations=["R29", "L43", "R6"], rot="R29", dir="R", amount=29
+ 5: dir = rot[0]                           | position=79, rotations=["R29", "L43", "R6"], rot="L43", dir="R", amount=29
+ 6: amount = rot[1..].to_i                 | position=79, rotations=["R29", "L43", "R6"], rot="L43", dir="L", amount=29
+ 7: if dir == 'L'                          | position=79, rotations=["R29", "L43", "R6"], rot="L43", dir="L", amount=43
+ 8: position -= amount                     | position=79, rotations=["R29", "L43", "R6"], rot="L43", dir="L", amount=43
+12: position %= 100                        | position=36, rotations=["R29", "L43", "R6"], rot="L43", dir="L", amount=43
+ 5: dir = rot[0]                           | position=36, rotations=["R29", "L43", "R6"], rot="R6", dir="L", amount=43
+ 6: amount = rot[1..].to_i                 | position=36, rotations=["R29", "L43", "R6"], rot="R6", dir="R", amount=43
+ 7: if dir == 'L'                          | position=36, rotations=["R29", "L43", "R6"], rot="R6", dir="R", amount=6
+10: position += amount                     | position=36, rotations=["R29", "L43", "R6"], rot="R6", dir="R", amount=6
+12: position %= 100                        | position=42, rotations=["R29", "L43", "R6"], rot="R6", dir="R", amount=6
+15: position                               | position=42, rotations=["R29", "L43", "R6"], rot="R6", dir="R", amount=6
+...
+Result: 42
+#+end_example
+
+* Part 3: Benchmarking
+
+** Basic Benchmark Module
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+# Day 01 style: dial rotation
+def solve_loop(rotations)
+  position = 50
+  rotations.each do |rot|
+    dir, amount = rot[0], rot[1..].to_i
+    position += (dir == 'L' ? -amount : amount)
+    position %= 100
+  end
+  position
+end
+
+def solve_reduce(rotations)
+  rotations.reduce(50) do |pos, rot|
+    dir, amount = rot[0], rot[1..].to_i
+    (pos + (dir == 'L' ? -amount : amount)) % 100
+  end
+end
+
+def solve_sum(rotations)
+  delta = rotations.sum do |rot|
+    dir, amount = rot[0], rot[1..].to_i
+    dir == 'L' ? -amount : amount
+  end
+  (50 + delta) % 100
+end
+
+# Test data
+rotations = %w[R29 R6 L43 L6 R28 L42 L34 L32 L13 L15] * 1000
+
+Benchmark.bm(15) do |x|
+  x.report('loop:')   { 100.times { solve_loop(rotations) } }
+  x.report('reduce:') { 100.times { solve_reduce(rotations) } }
+  x.report('sum:')    { 100.times { solve_sum(rotations) } }
+end
+#+END_SRC
+
+#+RESULTS:
+:                       user     system      total        real
+: loop:             0.317885   0.000000   0.317885 (  0.318020)
+: reduce:           0.349471   0.000000   0.349471 (  0.349683)
+: sum:              0.294918   0.000000   0.294918 (  0.295136)
+
+** Memory Profiling with ObjectSpace
+
+#+BEGIN_SRC ruby
+require 'objspace'
+
+def count_allocations(&block)
+  GC.disable
+  before = ObjectSpace.count_objects
+  yield
+  after = ObjectSpace.count_objects
+  GC.enable
+
+  diff = {}
+  after.each do |type, count|
+    delta = count - before[type]
+    diff[type] = delta if delta != 0
+  end
+  diff
+end
+
+rotations = %w[R29 R6 L43 L6 R28 L42 L34 L32 L13 L15]
+
+puts "=== Object Allocations ==="
+puts
+puts "Loop approach:"
+pp count_allocations {
+  position = 50
+  rotations.each do |rot|
+    dir, amount = rot[0], rot[1..].to_i
+    position += (dir == 'L' ? -amount : amount)
+    position %= 100
+  end
+}
+
+puts
+puts "Sum approach (fewer intermediates):"
+pp count_allocations {
+  delta = rotations.sum { |rot| rot[0] == 'L' ? -rot[1..].to_i : rot[1..].to_i }
+  (50 + delta) % 100
+}
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+=== Object Allocations ===
+
+Loop approach:
+{:TOTAL=>31, :FREE=>-51, :T_STRING=>30, :T_ARRAY=>1, :T_IMEMO=>1}
+
+Sum approach (fewer intermediates):
+{:TOTAL=>21, :FREE=>-41, :T_STRING=>20, :T_IMEMO=>1}
+#+end_example
+
+* Part 4: Interactive Debugging
+
+** Using the debug Gem
+
+The =debug= gem (bundled with Ruby 3.1+) provides a modern debugging experience.
+
+*** Starting the Debugger
+
+#+BEGIN_SRC sh :tangle no
+# Method 1: Debug from command line
+ruby -r debug solution.rb
+
+# Method 2: Insert breakpoint in code
+# require 'debug'; debugger
+
+# Method 3: Remote debugging
+# RUBY_DEBUG_PORT=12345 ruby -r debug solution.rb
+#+END_SRC
+
+*** Debugger Commands Reference
+
+| Command      | Short | Description                      |
+|--------------+-------+----------------------------------|
+| break        | b     | Set breakpoint                   |
+| continue     | c     | Continue execution               |
+| next         | n     | Step over                        |
+| step         | s     | Step into                        |
+| finish       | fin   | Step out                         |
+| info         | i     | Show information                 |
+| backtrace    | bt    | Show call stack                  |
+| frame        | f     | Select frame                     |
+| eval         | e     | Evaluate expression              |
+| watch        | w     | Set watchpoint                   |
+| display      | disp  | Auto-display expression          |
+| quit         | q     | Exit debugger                    |
+
+*** Example Debug Session
+
+#+BEGIN_SRC ruby :tangle 2025/day01/debug_example.rb
+#!/usr/bin/env ruby
+# Run with: ruby -r debug 2025/day01/debug_example.rb
+
+def apply_rotation(position, rotation)
+  dir = rotation[0]
+  amount = rotation[1..].to_i
+
+  # Uncomment to trigger breakpoint:
+  # require 'debug'; debugger
+
+  delta = dir == 'L' ? -amount : amount
+  (position + delta) % 100
+end
+
+def solve(input)
+  position = 50
+  zero_count = 0
+
+  input.each_line do |line|
+    line = line.strip
+    next if line.empty?
+
+    position = apply_rotation(position, line)
+    zero_count += 1 if position == 0
+  end
+
+  zero_count
+end
+
+if __FILE__ == $0
+  sample = "R29\nR6\nL43\nL6\nR28\nL42\nL34\nL32\nL13\nL15"
+  puts "Result: #{solve(sample)}"
+end
+#+END_SRC
+
+* Part 5: FreeBSD-Specific Tools
+
+** DTrace Probes
+
+FreeBSD has excellent DTrace support. Ruby can emit DTrace probes.
+
+#+BEGIN_SRC sh :tangle no
+# Check if Ruby has DTrace support
+ruby -e "puts 'DTrace: ' + (defined?(DTrace) ? 'yes' : 'no')"
+
+# List available Ruby probes (requires root)
+# sudo dtrace -l | grep ruby
+
+# Example: trace method calls
+# sudo dtrace -n 'ruby*:::method-entry { printf("%s::%s\n", copyinstr(arg0), copyinstr(arg1)); }' -c "ruby solution.rb"
+#+END_SRC
+
+** System Profiling with ktrace
+
+#+BEGIN_SRC sh :tangle no
+# Trace system calls
+ktrace -i ruby solution.rb
+kdump | head -50
+
+# Clean up
+rm ktrace.out
+#+END_SRC
+
+** procstat for Process Analysis
+
+#+BEGIN_SRC sh :tangle no
+# Run Ruby in background and inspect
+ruby -e "sleep 60" &
+PID=$!
+
+# Show thread info
+procstat -t $PID
+
+# Show memory map
+procstat -v $PID
+
+# Show open files
+procstat -f $PID
+
+kill $PID
+#+END_SRC
+
+* Part 6: Comparing Solution Approaches
+
+** Day 01: Dial Rotation Benchmark
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+# Sample input (repeated for realistic timing)
+BASE_INPUT = %w[R29 R6 L43 L6 R28 L42 L34 L32 L13 L15]
+LARGE_INPUT = BASE_INPUT * 10_000
+
+# Approach 1: Imperative loop
+def solve_imperative(rotations)
+  position = 50
+  zero_count = 0
+  rotations.each do |rot|
+    dir, amount = rot[0], rot[1..].to_i
+    position = (position + (dir == 'L' ? -amount : amount)) % 100
+    zero_count += 1 if position == 0
+  end
+  zero_count
+end
+
+# Approach 2: Functional with each_with_object
+def solve_functional(rotations)
+  rotations.each_with_object([50, 0]) do |rot, (pos, count)|
+    dir, amount = rot[0], rot[1..].to_i
+    new_pos = (pos + (dir == 'L' ? -amount : amount)) % 100
+    [new_pos, count + (new_pos == 0 ? 1 : 0)]
+  end.last
+end
+
+# Approach 3: Using scan for intermediate positions
+def solve_scan(rotations)
+  deltas = rotations.map do |rot|
+    dir, amount = rot[0], rot[1..].to_i
+    dir == 'L' ? -amount : amount
+  end
+
+  positions = deltas.each_with_object([50]) do |delta, acc|
+    acc << (acc.last + delta) % 100
+  end
+
+  positions.drop(1).count(0)
+end
+
+# Verify correctness
+puts "Verification (should all be 0 for sample):"
+puts "  Imperative: #{solve_imperative(BASE_INPUT)}"
+puts "  Functional: #{solve_functional(BASE_INPUT)}"
+puts "  Scan:       #{solve_scan(BASE_INPUT)}"
+puts
+
+# Benchmark
+puts "Benchmark (100,000 rotations):"
+Benchmark.bmbm(12) do |x|
+  x.report('imperative:') { solve_imperative(LARGE_INPUT) }
+  x.report('functional:') { solve_functional(LARGE_INPUT) }
+  x.report('scan:')       { solve_scan(LARGE_INPUT) }
+end
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Verification (should all be 0 for sample):
+  Imperative: 0
+  Functional: 0
+  Scan:       0
+
+Benchmark (100,000 rotations):
+Rehearsal ------------------------------------------------
+imperative:    0.043115   0.000000   0.043115 (  0.043149)
+functional:    0.047821   0.000000   0.047821 (  0.047865)
+scan:          0.056541   0.000000   0.056541 (  0.056603)
+--------------------------------------- total: 0.147477sec
+
+                   user     system      total        real
+imperative:    0.043045   0.000000   0.043045 (  0.043089)
+functional:    0.047689   0.000000   0.047689 (  0.047732)
+scan:          0.056419   0.000000   0.056419 (  0.056478)
+#+end_example
+
+* Part 7: Creating a Debug Helper Module
+
+#+BEGIN_SRC ruby :tangle lib/aoc_debug.rb
+# frozen_string_literal: true
+
+# Debug utilities for Advent of Code solutions
+module AocDebug
+  class << self
+    # Disassemble a method or block
+    def disasm(code_string)
+      iseq = RubyVM::InstructionSequence.compile(code_string)
+      puts iseq.disasm
+    end
+
+    # Show AST for code
+    def ast(code_string)
+      require 'ripper'
+      require 'pp'
+      pp Ripper.sexp(code_string)
+    end
+
+    # Trace execution of a block
+    def trace_calls(&block)
+      depth = 0
+      tracer = TracePoint.new(:call, :return) do |tp|
+        next unless tp.path == '(eval)' || tp.path.include?('solution')
+
+        case tp.event
+        when :call
+          puts "#{'  ' * depth}→ #{tp.method_id}"
+          depth += 1
+        when :return
+          depth -= 1
+          puts "#{'  ' * depth}← #{tp.method_id} => #{tp.return_value.inspect[0..50]}"
+        end
+      end
+      tracer.enable(&block)
+    end
+
+    # Count object allocations
+    def allocations(&block)
+      require 'objspace'
+      GC.disable
+      before = ObjectSpace.count_objects
+      result = yield
+      after = ObjectSpace.count_objects
+      GC.enable
+
+      diff = after.map { |k, v| [k, v - before[k]] }.to_h.reject { |_, v| v == 0 }
+      { result: result, allocations: diff }
+    end
+
+    # Simple benchmark
+    def time(label = 'Block', iterations = 1, &block)
+      require 'benchmark'
+      result = nil
+      time = Benchmark.measure { iterations.times { result = yield } }
+      puts "#{label}: #{time.real / iterations * 1000}ms (avg of #{iterations})"
+      result
+    end
+  end
+end
+
+# Example usage when run directly
+if __FILE__ == $0
+  puts "=== Disassembly ==="
+  AocDebug.disasm('arr.map { |x| x * 2 }.sum')
+
+  puts "\n=== AST ==="
+  AocDebug.ast('[1,2,3].map(&:to_s)')
+
+  puts "\n=== Allocations ==="
+  pp AocDebug.allocations { (1..1000).map { |n| n.to_s } }
+
+  puts "\n=== Timing ==="
+  AocDebug.time('Sum 1..1000', 1000) { (1..1000).sum }
+end
+#+END_SRC
+
+* Quick Reference
+
+** One-Liners for Debugging
+
+#+BEGIN_SRC ruby :tangle no
+# Disassemble expression
+RubyVM::InstructionSequence.compile('x + 1').disasm
+
+# Show AST
+require 'ripper'; pp Ripper.sexp('x + 1')
+
+# Trace method calls
+TracePoint.new(:call) { |tp| p [tp.method_id, tp.lineno] }.enable
+
+# Count allocations
+GC.stat[:total_allocated_objects]
+
+# Time a block
+require 'benchmark'; puts Benchmark.measure { your_code }
+
+# Memory size of object
+require 'objspace'; ObjectSpace.memsize_of(obj)
+
+# Insert breakpoint
+require 'debug'; debugger
+#+END_SRC
+
+** Environment Variables for Debug
+
+| Variable              | Effect                                    |
+|-----------------------+-------------------------------------------|
+| RUBY_DEBUG=1          | Enable debug gem by default               |
+| RUBY_DEBUG_PORT=PORT  | Enable remote debugging on PORT           |
+| RUBYOPT=-w            | Enable warnings                           |
+| RUBYOPT=--debug       | Enable debug mode                         |
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:
