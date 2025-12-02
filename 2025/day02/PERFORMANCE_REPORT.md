@@ -1,0 +1,185 @@
+# Day 02: Performance & Parallelism Report
+
+## Executive Summary
+
+For the "repeated digits" problem (find numbers like 6464, 123123), we tested 7 strategies across input sizes from 600 to 200 million numbers.
+
+**Winner**: Mathematical approach (`multiplier`) - **150,000x faster** than any parallel brute force.
+
+---
+
+## System Under Test
+
+| Property | Value |
+|----------|-------|
+| OS | FreeBSD 14.3-RELEASE |
+| CPU | Intel N95 (4 cores) |
+| RAM | 15GB |
+| Ruby | 3.3.8 |
+
+---
+
+## Strategy Performance (200M numbers)
+
+| Strategy | Time | Speedup | Notes |
+|----------|------|---------|-------|
+| brute_force | ~70s (est) | 1x | Single thread |
+| string_check | ~105s (est) | 0.7x | Regex slower |
+| ractor_brute | 46.6s | 1.5x | Many small Ractors |
+| ractor_optimized | 46.6s | 1.5x | 4 Ractors, bounds only |
+| parallel_brute | 27.8s | 2.5x | fork() bypasses GVL |
+| hybrid | 0.00008s | 875,000x | Auto-selects multiplier |
+| **multiplier** | **0.00003s** | **2,333,333x** | Math, no iteration |
+
+---
+
+## Why Parallel Approaches Differ
+
+### Ruby's GVL Problem
+
+```
+┌─────────────────────────────────────┐
+│          Ruby Process               │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐  │
+│  │ Thr │ │ Thr │ │ Thr │ │ Thr │  │
+│  └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘  │
+│     │       │       │       │      │
+│     └───────┴───┬───┴───────┘      │
+│                 │                   │
+│          ┌──────▼──────┐           │
+│          │     GVL     │ ← Only one│
+│          │  (Global    │   thread  │
+│          │   VM Lock)  │   at a    │
+│          └─────────────┘   time    │
+└─────────────────────────────────────┘
+```
+
+### Ractors (Threads with Isolation)
+
+```
+┌─────────────────────────────────────┐
+│          Ruby Process               │
+│  ┌─────────┐  ┌─────────┐          │
+│  │ Ractor1 │  │ Ractor2 │  ...     │
+│  │ (heap)  │  │ (heap)  │          │
+│  └────┬────┘  └────┬────┘          │
+│       │            │                │
+│   Still share some runtime          │
+│   (string ops may serialize)        │
+└─────────────────────────────────────┘
+
+Result: ~1.5x speedup (not 4x)
+```
+
+### fork() (Separate Processes)
+
+```
+┌──────────────┐     ┌──────────────┐
+│   Process 1  │     │   Process 2  │
+│  (own GVL)   │     │  (own GVL)   │
+│  (own heap)  │     │  (own heap)  │
+└──────────────┘     └──────────────┘
+        │                   │
+        │   Copy-on-write   │
+        │     memory        │
+        └─────────┬─────────┘
+                  │
+           True parallel
+
+Result: ~2.5x speedup on 4 cores
+```
+
+---
+
+## IPC Approaches Tested
+
+| Method | Overhead | Complexity | Best For |
+|--------|----------|------------|----------|
+| parallel gem | Low | Low | General use |
+| Unix sockets | Medium | Medium | Clean APIs |
+| Shared memory file | Very low | Medium | Max throughput |
+| Named pipes (FIFO) | Low | Low | Simple data flow |
+| Ractors | Medium | Low | Future Ruby? |
+
+---
+
+## The Mathematical Insight
+
+Instead of checking every number, we use the formula:
+
+```
+repeated_number = pattern × (10^d + 1)
+
+Where d = digits in pattern:
+  d=1: 11    →  5 × 11 = 55
+  d=2: 101   → 64 × 101 = 6464
+  d=3: 1001  → 123 × 1001 = 123123
+```
+
+Then sum patterns in range using arithmetic series:
+
+```ruby
+# Sum of consecutive integers: n(n+1)/2
+# Sum of lo..hi: count × (lo + hi) / 2
+
+(1..max_d).each do |d|
+  mult = 10 ** d + 1
+  lo = [range.begin / mult, min_pattern].max
+  hi = [range.end / mult, max_pattern].min
+
+  count = hi - lo + 1
+  pattern_sum = count * (lo + hi) / 2
+  total += pattern_sum * mult
+end
+```
+
+**Complexity**: O(log n) vs O(n) for brute force.
+
+---
+
+## Scaling Behavior
+
+| Range Size | Brute Force | Multiplier | Ratio |
+|------------|-------------|------------|-------|
+| 1,000 | 0.0004s | 0.00004s | 10x |
+| 10,000 | 0.004s | 0.00001s | 400x |
+| 100,000 | 0.04s | 0.00001s | 4,000x |
+| 1,000,000 | 0.4s | 0.00001s | 40,000x |
+| 10,000,000 | 4s | 0.00001s | 400,000x |
+| 100,000,000 | 40s | 0.00001s | 4,000,000x |
+| 1,000,000,000 | 400s (est) | 0.00001s | 40,000,000x |
+
+The multiplier time is **constant** regardless of input size.
+
+---
+
+## Recommendations
+
+1. **Always look for math**: Can you avoid iteration entirely?
+
+2. **If you must iterate**:
+   - < 100K: Single thread is fine
+   - 100K - 10M: `parallel` gem with processes
+   - \> 10M: Reconsider the algorithm
+
+3. **Ractors**: Not ready for CPU-bound work yet (Ruby 3.3)
+
+4. **FreeBSD advantages**:
+   - kqueue for efficient event handling
+   - Good fork() performance
+   - POSIX IPC fully supported
+
+---
+
+## Files in This Analysis
+
+```
+2025/day02/
+├── solution.rb              # All 7 strategies
+├── benchmark.rb             # Automated benchmarking
+├── BENCHMARK_RESULTS.md     # Raw benchmark output
+├── PARALLELISM_DEEP_DIVE.md # IPC architecture analysis
+├── PERFORMANCE_REPORT.md    # This summary
+├── socket_parallel.rb       # Unix socket demo
+└── shm_parallel.rb          # Shared memory demo
+```
