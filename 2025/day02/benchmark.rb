@@ -77,8 +77,8 @@ def run_benchmark(scenario_name, range_specs, strategies)
 
   Benchmark.bm(15) do |x|
     strategies.each do |strategy|
-      # Skip brute force for very large inputs (> 3M)
-      if strategy != :multiplier && total_numbers > 3_000_000
+      # Skip brute force for very large inputs (> 20M)
+      if strategy != :multiplier && total_numbers > 20_000_000
         puts "  #{strategy.to_s.ljust(15)} (skipped - too slow for #{format_number(total_numbers)} numbers)"
         next
       end
