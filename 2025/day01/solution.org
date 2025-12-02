@@ -2,6 +2,29 @@
 #+AUTHOR: AoC Solutions
 #+PROPERTY: header-args :results output :exports both
 #+PROPERTY: header-args:elisp :lexical t
+#+PROPERTY: header-args:sh :tangle solve.sh :shebang "#!/bin/sh"
+#+PROPERTY: header-args:ruby :tangle solution_literate.rb :shebang "#!/usr/bin/env ruby"
+#+PROPERTY: header-args:python :tangle solution.py :shebang "#!/usr/bin/env python3"
+
+* Tangling
+
+To extract all source files from this document:
+
+#+BEGIN_SRC elisp :results silent :tangle no
+(org-babel-tangle)
+#+END_SRC
+
+Or from command line:
+#+BEGIN_EXAMPLE
+emacs --batch -l org --eval '(org-babel-tangle-file "solution.org")'
+#+END_EXAMPLE
+
+This will create:
+- =aoc-day01.el= - Elisp solution
+- =solution.py= - Python solution
+- =solution_literate.rb= - Ruby solution
+- =solve.sh= - Shell/awk solution
+- =sample.in= - Sample input data
 
 * Problem Description
 
@@ -180,7 +203,7 @@ View history:
 
 * Shell Solution (for comparison)
 
-#+BEGIN_SRC sh :var input=sample-input
+#+BEGIN_SRC sh :var input=sample-input :tangle no
 echo "$input" | awk '
 BEGIN { v = 50; count = 0 }
 {
@@ -198,9 +221,33 @@ END { print "Zero count:", count }
 #+RESULTS:
 : Zero count: 0
 
+** Standalone Shell Script
+
+#+BEGIN_SRC sh :tangle solve.sh
+# Advent of Code 2025 - Day 01: Secret Entrance
+# Usage: ./solve.sh input.txt
+
+INPUT_FILE="${1:-input.txt}"
+
+awk '
+BEGIN { v = 50; count = 0 }
+{
+    dir = substr($0, 1, 1)
+    num = substr($0, 2) + 0
+    if (dir == "L") v -= num
+    else v += num
+    v = ((v % 100) + 100) % 100
+    if (v == 0) count++
+}
+END { print "Part 1:", count }
+' "$INPUT_FILE"
+#+END_SRC
+
 * Python Solution (using org-babel session)
 
-#+BEGIN_SRC python :session py-aoc :results silent
+** Interactive Session
+
+#+BEGIN_SRC python :session py-aoc :results silent :tangle no
 # Initialize session state
 position = 50
 zero_count = 0
@@ -221,30 +268,68 @@ def step(rotation):
     return position
 #+END_SRC
 
-#+BEGIN_SRC python :session py-aoc
+#+BEGIN_SRC python :session py-aoc :tangle no
 step("R29")
 #+END_SRC
 
 #+RESULTS:
 : 79
 
-#+BEGIN_SRC python :session py-aoc
+#+BEGIN_SRC python :session py-aoc :tangle no
 step("R6")
 #+END_SRC
 
 #+RESULTS:
 : 85
 
-#+BEGIN_SRC python :session py-aoc
+#+BEGIN_SRC python :session py-aoc :tangle no
 f"Position: {position}, Zeros: {zero_count}, Steps: {len(history)}"
 #+END_SRC
 
 #+RESULTS:
 : Position: 85, Zeros: 0, Steps: 2
 
+** Standalone Python Script
+
+#+BEGIN_SRC python :tangle solution.py
+"""Advent of Code 2025 - Day 01: Secret Entrance"""
+import sys
+
+def solve(input_text: str) -> int:
+    """Count how many times the dial lands on 0."""
+    position = 50
+    zero_count = 0
+
+    for line in input_text.strip().split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+
+        direction = line[0]
+        amount = int(line[1:])
+
+        if direction == 'L':
+            position = (position - amount) % 100
+        else:
+            position = (position + amount) % 100
+
+        if position == 0:
+            zero_count += 1
+
+    return zero_count
+
+if __name__ == '__main__':
+    input_file = sys.argv[1] if len(sys.argv) > 1 else 'input.txt'
+    with open(input_file) as f:
+        result = solve(f.read())
+    print(f"Part 1: {result}")
+#+END_SRC
+
 * Ruby Solution (literate)
 
-#+BEGIN_SRC ruby :var input=sample-input
+** Inline Test
+
+#+BEGIN_SRC ruby :var input=sample-input :tangle no
 position = 50
 zero_count = 0
 
@@ -264,6 +349,42 @@ puts "Zero count: #{zero_count}"
 
 #+RESULTS:
 : Zero count: 0
+
+** Standalone Ruby Script
+
+#+BEGIN_SRC ruby :tangle solution_literate.rb
+# Advent of Code 2025 - Day 01: Secret Entrance
+# Tangled from solution.org
+
+DIAL_SIZE = 100
+START_POSITION = 50
+
+def solve(input)
+  position = START_POSITION
+  zero_count = 0
+
+  input.each_line do |line|
+    line = line.strip
+    next if line.empty?
+
+    direction = line[0]
+    amount = line[1..].to_i
+
+    position += (direction == 'L' ? -amount : amount)
+    position %= DIAL_SIZE
+
+    zero_count += 1 if position == 0
+  end
+
+  zero_count
+end
+
+if __FILE__ == $0
+  input_file = ARGV[0] || 'input.txt'
+  input = File.read(input_file)
+  puts "Part 1: #{solve(input)}"
+end
+#+END_SRC
 
 * Table-Driven Execution
 
