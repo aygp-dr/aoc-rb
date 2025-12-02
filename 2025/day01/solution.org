@@ -14,8 +14,8 @@ A circular dial (0-99) starts at position 50.
 
 * Sample Input
 
-#+NAME: sample-input
-#+BEGIN_SRC text
+#+NAME: sample-input 
+#+BEGIN_SRC text :tangle sample.in
 R29
 R6
 L43
@@ -33,7 +33,7 @@ L15
 ** Helper Functions
 
 #+NAME: elisp-helpers
-#+BEGIN_SRC elisp :results silent
+#+BEGIN_SRC elisp :results silent :tangle aoc-day01.el
 (defun aoc-parse-rotation (str)
   "Parse rotation like 'L43' into (direction . amount)."
   (let ((dir (substring str 0 1))
@@ -72,9 +72,26 @@ L15
 
 ** Interactive Version with Session State
 
-Using a named session to maintain state between blocks:
+Using a named session to maintain state between blocks.
 
+*Important*: Execute blocks in order. The first block defines helpers and initializes state.
+
+#+NAME: session-init
 #+BEGIN_SRC elisp :session aoc-day01 :results silent
+;; Define helpers (needed in session since noweb doesn't work with sessions)
+(defun aoc-parse-rotation (str)
+  "Parse rotation like 'L43' into (direction . amount)."
+  (let ((dir (substring str 0 1))
+        (num (string-to-number (substring str 1))))
+    (cons dir num)))
+
+(defun aoc-apply-rotation (position rotation)
+  "Apply a rotation to position, return new position (mod 100)."
+  (let* ((dir (car rotation))
+         (amount (cdr rotation))
+         (delta (if (string= dir "L") (- amount) amount)))
+    (mod (+ position delta) 100)))
+
 ;; Initialize state
 (setq aoc-position 50)
 (setq aoc-zero-count 0)
@@ -89,6 +106,13 @@ Using a named session to maintain state between blocks:
     (when (= aoc-position 0)
       (cl-incf aoc-zero-count))
     aoc-position))
+
+(defun aoc-reset ()
+  "Reset session state."
+  (setq aoc-position 50)
+  (setq aoc-zero-count 0)
+  (setq aoc-history '())
+  "State reset!")
 #+END_SRC
 
 Step through rotations one at a time:
@@ -123,6 +147,36 @@ View current state:
 
 #+RESULTS:
 : Position: 42, Zeros: 0, Steps: 3
+
+Reset and run all at once:
+
+#+BEGIN_SRC elisp :session aoc-day01
+(aoc-reset)
+#+END_SRC
+
+#+RESULTS:
+: State reset!
+
+#+BEGIN_SRC elisp :session aoc-day01 :var input=sample-input
+;; Run all rotations from input
+(aoc-reset)
+(dolist (line (split-string input "\n" t))
+  (aoc-step line))
+(format "Final: Position=%d, Zeros=%d, Steps=%d"
+        aoc-position aoc-zero-count (length aoc-history))
+#+END_SRC
+
+#+RESULTS:
+: Final: Position=28, Zeros=0, Steps=10
+
+View history:
+
+#+BEGIN_SRC elisp :session aoc-day01
+(reverse aoc-history)
+#+END_SRC
+
+#+RESULTS:
+: ((50 "R29" 79) (79 "R6" 85) (85 "L43" 42) (42 "L6" 36) (36 "R28" 64) (64 "L42" 22) (22 "L34" 88) (88 "L32" 56) (56 "L13" 43) (43 "L15" 28))
 
 * Shell Solution (for comparison)
 
