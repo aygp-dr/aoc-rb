@@ -401,6 +401,204 @@ module ReplHelpers
   end
 
   # ============================================================
+  # Complex Number Navigation (for 2D grid problems)
+  # ============================================================
+
+  # Direction constants as Complex numbers
+  # Complex(real, imag) where real=col(x), imag=row(y)
+  # Note: "up" decreases row in typical grid representation
+  NORTH = Complex(0, -1)
+  SOUTH = Complex(0, 1)
+  EAST  = Complex(1, 0)
+  WEST  = Complex(-1, 0)
+
+  # Aliases for different conventions
+  UP    = NORTH
+  DOWN  = SOUTH
+  RIGHT = EAST
+  LEFT  = WEST
+
+  # Cardinal directions array (for iteration)
+  CARDINALS = [NORTH, EAST, SOUTH, WEST].freeze
+  DIAGONALS = [Complex(1, -1), Complex(1, 1), Complex(-1, 1), Complex(-1, -1)].freeze
+  ALL_DIRS  = (CARDINALS + DIAGONALS).freeze
+
+  # Turn 90 degrees
+  def turn_right(dir)
+    dir * Complex(0, 1)  # Multiply by i rotates 90° clockwise
+  end
+
+  def turn_left(dir)
+    dir * Complex(0, -1) # Multiply by -i rotates 90° counter-clockwise
+  end
+
+  def turn_around(dir)
+    -dir
+  end
+
+  # Parse direction from character
+  def parse_dir(char)
+    case char.to_s.upcase
+    when 'N', 'U', '^' then NORTH
+    when 'S', 'D', 'v' then SOUTH
+    when 'E', 'R', '>' then EAST
+    when 'W', 'L', '<' then WEST
+    else raise ArgumentError, "Unknown direction: #{char}"
+    end
+  end
+
+  # Manhattan distance for complex numbers
+  def manhattan(c1, c2 = Complex(0, 0))
+    (c1.real - c2.real).abs + (c1.imag - c2.imag).abs
+  end
+
+  # Convert between [row, col] and Complex
+  def to_complex(row, col)
+    Complex(col, row)
+  end
+
+  def to_rc(c)
+    [c.imag.to_i, c.real.to_i]
+  end
+
+  # Get neighbors as complex numbers
+  def neighbors4(pos)
+    CARDINALS.map { |d| pos + d }
+  end
+
+  def neighbors8(pos)
+    ALL_DIRS.map { |d| pos + d }
+  end
+
+  # ============================================================
+  # Position-Aware Scanning (for schematic/grid problems)
+  # ============================================================
+
+  # Scan with positions - returns [[match, line_num, col_start, col_end], ...]
+  def scan_positions(text, pattern)
+    pattern = Regexp.new(pattern) if pattern.is_a?(String)
+    results = []
+
+    text.lines.each_with_index do |line, line_num|
+      line.to_enum(:scan, pattern).each do
+        m = Regexp.last_match
+        results << [m[0], line_num, m.begin(0), m.end(0) - 1]
+      end
+    end
+
+    results
+  end
+
+  # Find all numbers with their positions
+  def scan_numbers(text)
+    scan_positions(text, /-?\d+/).map { |m, r, c1, c2| [m.to_i, r, c1, c2] }
+  end
+
+  # Find symbols (non-digit, non-period, non-newline)
+  def scan_symbols(text)
+    scan_positions(text, /[^\d.\n]/)
+  end
+
+  # Check if position is adjacent to any in a set (for gear problems)
+  def adjacent_to?(row, col, positions, include_diag: true)
+    deltas = include_diag ? [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]] : [[-1,0],[0,-1],[0,1],[1,0]]
+    deltas.any? { |dr, dc| positions.include?([row + dr, col + dc]) }
+  end
+
+  # Get all adjacent positions for a span (like a multi-digit number)
+  def span_neighbors(row, col_start, col_end, include_diag: true)
+    neighbors = Set.new
+    (col_start..col_end).each do |col|
+      deltas = include_diag ? [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]] : [[-1,0],[0,-1],[0,1],[1,0]]
+      deltas.each { |dr, dc| neighbors << [row + dr, col + dc] }
+    end
+    # Remove the span itself
+    (col_start..col_end).each { |c| neighbors.delete([row, c]) }
+    neighbors
+  end
+
+  # ============================================================
+  # Cycle Detection Shortcuts (expose aoc_utils helpers)
+  # ============================================================
+
+  # Detect cycle and return [cycle_start, cycle_length]
+  def detect_cycle(initial, &next_state)
+    seen = { initial => 0 }
+    state = initial
+    step = 0
+
+    loop do
+      step += 1
+      state = next_state.call(state)
+
+      if seen.key?(state)
+        cycle_start = seen[state]
+        cycle_length = step - cycle_start
+        return { start: cycle_start, length: cycle_length, state: state }
+      end
+
+      seen[state] = step
+    end
+  end
+
+  # Fast-forward to iteration N using cycle detection
+  def fast_forward(initial, n, &next_state)
+    cycle = detect_cycle(initial, &next_state)
+
+    if n < cycle[:start]
+      state = initial
+      n.times { state = next_state.call(state) }
+      return state
+    end
+
+    remaining = (n - cycle[:start]) % cycle[:length]
+    state = initial
+    (cycle[:start] + remaining).times { state = next_state.call(state) }
+    state
+  end
+
+  # ============================================================
+  # Range/Interval Helpers
+  # ============================================================
+
+  # Check if two ranges overlap
+  def ranges_overlap?(r1, r2)
+    r1.cover?(r2.begin) || r2.cover?(r1.begin)
+  end
+
+  # Get intersection of two ranges (nil if no overlap)
+  def range_intersect(r1, r2)
+    return nil unless ranges_overlap?(r1, r2)
+    ([r1.begin, r2.begin].max)..([r1.end, r2.end].min)
+  end
+
+  # Merge overlapping/adjacent ranges
+  def merge_ranges(ranges)
+    sorted = ranges.sort_by(&:begin)
+    merged = [sorted.first]
+
+    sorted[1..].each do |range|
+      if merged.last.end >= range.begin - 1
+        merged[-1] = (merged.last.begin..[merged.last.end, range.end].max)
+      else
+        merged << range
+      end
+    end
+
+    merged
+  end
+
+  # Subtract range r2 from r1 (returns array of remaining ranges)
+  def range_subtract(r1, r2)
+    return [r1] unless ranges_overlap?(r1, r2)
+
+    result = []
+    result << (r1.begin..(r2.begin - 1)) if r1.begin < r2.begin
+    result << ((r2.end + 1)..r1.end) if r1.end > r2.end
+    result
+  end
+
+  # ============================================================
   # Modular Arithmetic / Dial Problems
   # ============================================================
 
@@ -504,8 +702,13 @@ puts "  Navigation: ls, ll, la, pwd, cd, cat, head, tail, wc"
 puts "  Search:     find, grep, rgrep"
 puts "  Files:      cp, mv, rm, mkdir, rmdir, touch"
 puts "  AoC:        input, lines, ints, grid, groups, extract_ints"
-puts "  Parse:      nums, floats, words, char_freq"
-puts "  Math:       gcd, lcm, prime?, divisors"
+puts "  Parse:      nums, floats, words, char_freq, scan_numbers, scan_symbols"
+puts "  Math:       gcd, lcm, prime?, divisors, manhattan"
+puts "  Directions: NORTH/SOUTH/EAST/WEST, turn_left, turn_right, parse_dir"
+puts "  Complex:    to_complex, to_rc, neighbors4, neighbors8"
+puts "  Ranges:     ranges_overlap?, range_intersect, merge_ranges, range_subtract"
+puts "  Cycles:     detect_cycle, fast_forward"
+puts "  Dial:       dial_positions, dial_solve, count_crossings"
 puts "  Display:    table, histogram, freq, print_grid, highlight_grid"
 puts "  Debug:      time, compare, where, methods_matching, d"
 puts "  Shell:      sh, shell, clear, pbcopy, pbpaste"
