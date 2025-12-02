@@ -11,7 +11,7 @@
 # - Strategy pattern for algorithm selection
 
 class Day02
-  STRATEGIES = %i[brute_force string_check multiplier parallel_brute ractor_brute].freeze
+  STRATEGIES = %i[brute_force string_check multiplier parallel_brute ractor_brute ractor_optimized hybrid].freeze
 
   def initialize(input, strategy: :multiplier)
     @ranges = parse_ranges(input)
@@ -56,6 +56,10 @@ class Day02
       parallel_brute_sum(range)
     when :ractor_brute
       ractor_brute_sum(range)
+    when :ractor_optimized
+      ractor_optimized_sum(range)
+    when :hybrid
+      hybrid_sum(range)
     end
   end
 
@@ -169,6 +173,60 @@ class Day02
     end
 
     ractors.map(&:take).sum
+  end
+
+  # ==========================================================================
+  # Strategy 6: Ractor Optimized
+  # Key improvements over ractor_brute:
+  # - Pass range bounds instead of array (no serialization of millions of elements)
+  # - Exactly N ractors where N = CPU count (no overhead from spawning many)
+  # - Each ractor computes its own subrange
+  # ==========================================================================
+  def ractor_optimized_sum(range)
+    num_ractors = Day02.cpu_count
+    range_size = range.size
+    chunk_size = (range_size.to_f / num_ractors).ceil
+
+    ractors = num_ractors.times.map do |i|
+      start_offset = i * chunk_size
+      end_offset = [(i + 1) * chunk_size - 1, range_size - 1].min
+
+      subrange_start = range.begin + start_offset
+      subrange_end = range.begin + end_offset
+
+      # Pass only the bounds, not the data!
+      Ractor.new(subrange_start, subrange_end) do |lo, hi|
+        sum = 0
+        (lo..hi).each do |n|
+          s = n.to_s
+          len = s.length
+          next if len.odd? || len == 0
+          half = len / 2
+          sum += n if s[0, half] == s[half, half]
+        end
+        sum
+      end
+    end
+
+    ractors.map(&:take).sum
+  end
+
+  # ==========================================================================
+  # Strategy 7: Hybrid (Parallel + Multiplier fallback)
+  # Uses parallel for ranges that benefit from it, multiplier for huge ranges
+  # - Small ranges (< 100K): single-threaded brute force
+  # - Medium ranges (100K - 10M): parallel brute force
+  # - Large ranges (> 10M): multiplier (mathematical)
+  # ==========================================================================
+  def hybrid_sum(range)
+    case range.size
+    when 0...100_000
+      brute_force_sum(range)
+    when 100_000...10_000_000
+      parallel_brute_sum(range)
+    else
+      multiplier_sum(range)
+    end
   end
 
   # ==========================================================================
