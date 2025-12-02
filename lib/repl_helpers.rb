@@ -302,6 +302,135 @@ module ReplHelpers
     puts "PWD:  #{Dir.pwd}"
     puts "PID:  #{Process.pid}"
   end
+
+  # ============================================================
+  # Data Structure Helpers
+  # ============================================================
+
+  # Pretty table display
+  def table(data, headers: nil)
+    return if data.empty?
+
+    data = [headers] + data if headers
+    widths = data.transpose.map { |col| col.map { |c| c.to_s.length }.max }
+
+    data.each_with_index do |row, i|
+      puts row.zip(widths).map { |cell, w| cell.to_s.ljust(w) }.join(' | ')
+      puts widths.map { |w| '-' * w }.join('-+-') if headers && i == 0
+    end
+    nil
+  end
+
+  # Histogram of values
+  def histogram(data, width: 40)
+    counts = data.tally.sort_by { |k, _| k }
+    max_count = counts.map(&:last).max
+    max_label = counts.map { |k, _| k.to_s.length }.max
+
+    counts.each do |value, count|
+      bar_width = (count.to_f / max_count * width).round
+      printf "%#{max_label}s | %s %d\n", value, '#' * bar_width, count
+    end
+    nil
+  end
+
+  # Frequencies with percentages
+  def freq(data)
+    total = data.size.to_f
+    data.tally.sort_by { |_, v| -v }.each do |value, count|
+      printf "%6.2f%% (%4d) %s\n", count / total * 100, count, value.inspect
+    end
+    nil
+  end
+
+  # ============================================================
+  # Math Helpers
+  # ============================================================
+
+  # Greatest common divisor
+  def gcd(a, b)
+    b.zero? ? a.abs : gcd(b, a % b)
+  end
+
+  # Least common multiple
+  def lcm(a, b)
+    (a * b).abs / gcd(a, b)
+  end
+
+  # Prime check
+  def prime?(n)
+    return false if n < 2
+    return true if n == 2
+    return false if n.even?
+
+    (3..Math.sqrt(n).to_i).step(2).none? { |i| (n % i).zero? }
+  end
+
+  # Divisors
+  def divisors(n)
+    (1..Math.sqrt(n)).each_with_object([]) do |i, divs|
+      if (n % i).zero?
+        divs << i
+        divs << n / i if i != n / i
+      end
+    end.sort
+  end
+
+  # ============================================================
+  # String/Parsing Helpers
+  # ============================================================
+
+  # Parse integers from string
+  def nums(str)
+    str.scan(/-?\d+/).map(&:to_i)
+  end
+
+  # Parse floats from string
+  def floats(str)
+    str.scan(/-?\d+\.?\d*/).map(&:to_f)
+  end
+
+  # Split on whitespace, multiple spaces ok
+  def words(str)
+    str.split
+  end
+
+  # Character frequency
+  def char_freq(str)
+    str.chars.tally.sort_by { |_, v| -v }
+  end
+
+  # ============================================================
+  # Debug Printing
+  # ============================================================
+
+  # Debug print with label
+  def d(label, value = nil)
+    if value.nil?
+      puts "DEBUG: #{label.inspect}"
+    else
+      puts "#{label}: #{value.inspect}"
+    end
+    value || label
+  end
+
+  # Print grid nicely
+  def print_grid(grid, sep: '')
+    grid.each { |row| puts row.join(sep) }
+    nil
+  end
+
+  # Highlight positions in grid
+  def highlight_grid(grid, positions, char: "\e[31m%s\e[0m")
+    positions = positions.to_set if positions.respond_to?(:to_set)
+    grid.each_with_index do |row, r|
+      line = row.each_with_index.map do |cell, c|
+        positions.include?([r, c]) ? (char % cell) : cell
+      end.join
+      puts line
+    end
+    nil
+  end
 end
 
 # Include helpers at top level for convenience
@@ -309,10 +438,13 @@ include ReplHelpers
 
 # Print welcome message
 puts "REPL Helpers loaded! Available commands:"
-puts "  Navigation: ls, ll, la, pwd, cd, cat, head, tail"
+puts "  Navigation: ls, ll, la, pwd, cd, cat, head, tail, wc"
 puts "  Search:     find, grep, rgrep"
 puts "  Files:      cp, mv, rm, mkdir, rmdir, touch"
 puts "  AoC:        input, lines, ints, grid, groups, extract_ints"
-puts "  Debug:      time, compare, where, methods_matching"
-puts "  Shell:      sh, shell, clear"
+puts "  Parse:      nums, floats, words, char_freq"
+puts "  Math:       gcd, lcm, prime?, divisors"
+puts "  Display:    table, histogram, freq, print_grid, highlight_grid"
+puts "  Debug:      time, compare, where, methods_matching, d"
+puts "  Shell:      sh, shell, clear, pbcopy, pbpaste"
 puts ""
