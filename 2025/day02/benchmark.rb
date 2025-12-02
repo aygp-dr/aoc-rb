@@ -2,6 +2,13 @@
 # Benchmark different strategies for Day 02: Gift Shop
 #
 # Generates synthetic data of varying sizes and measures performance
+#
+# Strategies:
+#   - brute_force:    O(n) single-threaded, string split
+#   - string_check:   O(n) single-threaded, regex backreference
+#   - parallel_brute: O(n/p) multi-process via parallel gem
+#   - ractor_brute:   O(n/p) multi-threaded via Ruby 3 Ractors
+#   - multiplier:     O(log n) mathematical, uses 10^d + 1 formula
 
 require 'benchmark'
 require_relative 'solution'
@@ -20,6 +27,7 @@ def system_info
   end
 
   info << "Ruby: #{RUBY_VERSION} [#{RUBY_PLATFORM}]"
+  info << "Parallel CPUs: #{Day02.cpu_count}"
   info.join("\n")
 end
 
@@ -75,11 +83,17 @@ def run_benchmark(scenario_name, range_specs, strategies)
 
   results = {}
 
-  Benchmark.bm(15) do |x|
+  Benchmark.bm(18) do |x|
     strategies.each do |strategy|
-      # Skip brute force for very large inputs (> 20M)
-      if strategy != :multiplier && total_numbers > 20_000_000
-        puts "  #{strategy.to_s.ljust(15)} (skipped - too slow for #{format_number(total_numbers)} numbers)"
+      # Skip single-threaded for very large inputs
+      if %i[brute_force string_check].include?(strategy) && total_numbers > 20_000_000
+        puts "  #{strategy.to_s.ljust(18)} (skipped - single-threaded too slow)"
+        next
+      end
+
+      # Skip ractor for extreme (overhead not worth it)
+      if strategy == :ractor_brute && total_numbers > 50_000_000
+        puts "  #{strategy.to_s.ljust(18)} (skipped - ractor overhead too high)"
         next
       end
 
@@ -139,3 +153,22 @@ sizes.each do |size|
 end
 
 puts "\nNote: multiplier strategy is O(log n) - time barely increases with range size"
+
+# Parallel scaling comparison
+puts "\n\n#{'=' * 70}"
+puts "PARALLEL SCALING: comparing single vs multi-core on 20M numbers"
+puts '=' * 70
+puts
+
+input = "0-10000000,1000000000-1010000000"
+
+puts "| Strategy         | Time (s)  | Speedup vs brute |"
+puts "|------------------|-----------|------------------|"
+
+times = {}
+[:brute_force, :parallel_brute, :multiplier].each do |strategy|
+  t = Benchmark.measure { Day02.new(input, strategy: strategy).part1 }
+  times[strategy] = t.real
+  speedup = strategy == :brute_force ? "1.0x" : "#{(times[:brute_force] / t.real).round(1)}x"
+  puts "| #{strategy.to_s.ljust(16)} | #{t.real.round(3).to_s.ljust(9)} | #{speedup.rjust(16)} |"
+end

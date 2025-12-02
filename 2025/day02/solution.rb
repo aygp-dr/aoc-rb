@@ -11,11 +11,23 @@
 # - Strategy pattern for algorithm selection
 
 class Day02
-  STRATEGIES = %i[brute_force string_check multiplier].freeze
+  STRATEGIES = %i[brute_force string_check multiplier parallel_brute ractor_brute].freeze
 
   def initialize(input, strategy: :multiplier)
     @ranges = parse_ranges(input)
     @strategy = strategy
+  end
+
+  def self.cpu_count
+    @cpu_count ||= begin
+      if File.exist?('/sbin/sysctl')
+        `sysctl -n hw.ncpu 2>/dev/null`.to_i
+      elsif File.exist?('/proc/cpuinfo')
+        File.read('/proc/cpuinfo').scan(/^processor/).count
+      else
+        4
+      end
+    end
   end
 
   # Part 1: Sum of all invalid IDs in ranges
@@ -40,6 +52,10 @@ class Day02
       string_check_sum(range)
     when :multiplier
       multiplier_sum(range)
+    when :parallel_brute
+      parallel_brute_sum(range)
+    when :ractor_brute
+      ractor_brute_sum(range)
     end
   end
 
@@ -112,6 +128,47 @@ class Day02
     end
 
     total
+  end
+
+  # ==========================================================================
+  # Strategy 4: Parallel Brute Force (using parallel gem)
+  # O(n/p) where p = number of processors
+  # Splits range into chunks, processes in parallel
+  # ==========================================================================
+  def parallel_brute_sum(range)
+    require 'parallel'
+
+    chunk_size = [(range.size / Day02.cpu_count), 1000].max
+    chunks = range.each_slice(chunk_size).to_a
+
+    Parallel.map(chunks, in_processes: Day02.cpu_count) do |chunk|
+      chunk.select { |id| invalid_id_string?(id) }.sum
+    end.sum
+  end
+
+  # ==========================================================================
+  # Strategy 5: Ractor Brute Force (Ruby 3.x native parallelism)
+  # O(n/p) where p = number of ractors
+  # Uses Ractor for true parallel execution without GVL
+  # ==========================================================================
+  def ractor_brute_sum(range)
+    num_ractors = Day02.cpu_count
+    chunk_size = [(range.size / num_ractors), 1000].max
+
+    ractors = range.each_slice(chunk_size).map do |chunk|
+      chunk_array = chunk.to_a
+      Ractor.new(chunk_array) do |nums|
+        nums.select do |n|
+          s = n.to_s
+          len = s.length
+          next false if len.odd? || len == 0
+          half = len / 2
+          s[0, half] == s[half, half]
+        end.sum
+      end
+    end
+
+    ractors.map(&:take).sum
   end
 
   # ==========================================================================
