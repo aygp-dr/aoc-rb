@@ -1,0 +1,260 @@
+#+TITLE: Advent of Code 2025 - Day 01: Secret Entrance
+#+AUTHOR: AoC Solutions
+#+PROPERTY: header-args :results output :exports both
+#+PROPERTY: header-args:elisp :lexical t
+
+* Problem Description
+
+A circular dial (0-99) starts at position 50.
+- =L#= rotates left (subtract)
+- =R#= rotates right (add)
+- Dial wraps around (modulo 100)
+
+*Part 1*: Count how many times the dial lands on 0.
+
+* Sample Input
+
+#+NAME: sample-input
+#+BEGIN_SRC text
+R29
+R6
+L43
+L6
+R28
+L42
+L34
+L32
+L13
+L15
+#+END_SRC
+
+* Elisp Solution
+
+** Helper Functions
+
+#+NAME: elisp-helpers
+#+BEGIN_SRC elisp :results silent
+(defun aoc-parse-rotation (str)
+  "Parse rotation like 'L43' into (direction . amount)."
+  (let ((dir (substring str 0 1))
+        (num (string-to-number (substring str 1))))
+    (cons dir num)))
+
+(defun aoc-apply-rotation (position rotation)
+  "Apply a rotation to position, return new position (mod 100)."
+  (let* ((dir (car rotation))
+         (amount (cdr rotation))
+         (delta (if (string= dir "L") (- amount) amount)))
+    (mod (+ position delta) 100)))
+
+(defun aoc-day01-solve (input)
+  "Solve Day 01 Part 1: count zeros."
+  (let ((position 50)
+        (zero-count 0)
+        (rotations (mapcar #'aoc-parse-rotation
+                           (split-string input "\n" t))))
+    (dolist (rot rotations)
+      (setq position (aoc-apply-rotation position rot))
+      (when (= position 0)
+        (cl-incf zero-count)))
+    zero-count))
+#+END_SRC
+
+** Run on Sample
+
+#+BEGIN_SRC elisp :var input=sample-input :noweb yes
+<<elisp-helpers>>
+(format "Zero count: %d" (aoc-day01-solve input))
+#+END_SRC
+
+#+RESULTS:
+: Zero count: 0
+
+** Interactive Version with Session State
+
+Using a named session to maintain state between blocks:
+
+#+BEGIN_SRC elisp :session aoc-day01 :results silent
+;; Initialize state
+(setq aoc-position 50)
+(setq aoc-zero-count 0)
+(setq aoc-history '())
+
+(defun aoc-step (rotation-str)
+  "Apply one rotation and track state."
+  (let* ((rot (aoc-parse-rotation rotation-str))
+         (old-pos aoc-position))
+    (setq aoc-position (aoc-apply-rotation aoc-position rot))
+    (push (list old-pos rotation-str aoc-position) aoc-history)
+    (when (= aoc-position 0)
+      (cl-incf aoc-zero-count))
+    aoc-position))
+#+END_SRC
+
+Step through rotations one at a time:
+
+#+BEGIN_SRC elisp :session aoc-day01
+(aoc-step "R29")  ; 50 + 29 = 79
+#+END_SRC
+
+#+RESULTS:
+: 79
+
+#+BEGIN_SRC elisp :session aoc-day01
+(aoc-step "R6")   ; 79 + 6 = 85
+#+END_SRC
+
+#+RESULTS:
+: 85
+
+#+BEGIN_SRC elisp :session aoc-day01
+(aoc-step "L43")  ; 85 - 43 = 42
+#+END_SRC
+
+#+RESULTS:
+: 42
+
+View current state:
+
+#+BEGIN_SRC elisp :session aoc-day01
+(format "Position: %d, Zeros: %d, Steps: %d"
+        aoc-position aoc-zero-count (length aoc-history))
+#+END_SRC
+
+#+RESULTS:
+: Position: 42, Zeros: 0, Steps: 3
+
+* Shell Solution (for comparison)
+
+#+BEGIN_SRC sh :var input=sample-input
+echo "$input" | awk '
+BEGIN { v = 50; count = 0 }
+{
+    dir = substr($0, 1, 1)
+    num = substr($0, 2) + 0
+    if (dir == "L") v -= num
+    else v += num
+    v = ((v % 100) + 100) % 100
+    if (v == 0) count++
+}
+END { print "Zero count:", count }
+'
+#+END_SRC
+
+#+RESULTS:
+: Zero count: 0
+
+* Python Solution (using org-babel session)
+
+#+BEGIN_SRC python :session py-aoc :results silent
+# Initialize session state
+position = 50
+zero_count = 0
+history = []
+
+def step(rotation):
+    global position, zero_count, history
+    direction = rotation[0]
+    amount = int(rotation[1:])
+    old_pos = position
+    if direction == 'L':
+        position = (position - amount) % 100
+    else:
+        position = (position + amount) % 100
+    history.append((old_pos, rotation, position))
+    if position == 0:
+        zero_count += 1
+    return position
+#+END_SRC
+
+#+BEGIN_SRC python :session py-aoc
+step("R29")
+#+END_SRC
+
+#+RESULTS:
+: 79
+
+#+BEGIN_SRC python :session py-aoc
+step("R6")
+#+END_SRC
+
+#+RESULTS:
+: 85
+
+#+BEGIN_SRC python :session py-aoc
+f"Position: {position}, Zeros: {zero_count}, Steps: {len(history)}"
+#+END_SRC
+
+#+RESULTS:
+: Position: 85, Zeros: 0, Steps: 2
+
+* Ruby Solution (literate)
+
+#+BEGIN_SRC ruby :var input=sample-input
+position = 50
+zero_count = 0
+
+input.each_line do |line|
+  line = line.strip
+  next if line.empty?
+
+  dir, amount = line[0], line[1..].to_i
+  position += (dir == 'L' ? -amount : amount)
+  position %= 100
+
+  zero_count += 1 if position == 0
+end
+
+puts "Zero count: #{zero_count}"
+#+END_SRC
+
+#+RESULTS:
+: Zero count: 0
+
+* Table-Driven Execution
+
+Process rotations as a table:
+
+#+NAME: rotation-table
+| Step | Rotation | Before | After | Zero? |
+|------+----------+--------+-------+-------|
+|    1 | R29      |     50 |    79 | no    |
+|    2 | R6       |     79 |    85 | no    |
+|    3 | L43      |     85 |    42 | no    |
+|    4 | L6       |     42 |    36 | no    |
+|    5 | R28      |     36 |    64 | no    |
+
+Generate this table programmatically:
+
+#+BEGIN_SRC elisp :var input=sample-input
+(let ((position 50)
+      (step 0)
+      (rows '()))
+  (dolist (line (split-string input "\n" t))
+    (let* ((rot (aoc-parse-rotation line))
+           (before position)
+           (after (aoc-apply-rotation position rot))
+           (zero-p (if (= after 0) "YES" "no")))
+      (cl-incf step)
+      (setq position after)
+      (push (list step line before after zero-p) rows)))
+  (nreverse rows))
+#+END_SRC
+
+#+RESULTS:
+| 1 | R29 | 50 | 79 | no |
+| 2 | R6  | 79 | 85 | no |
+| 3 | L43 | 85 | 42 | no |
+| 4 | L6  | 42 | 36 | no |
+| 5 | R28 | 36 | 64 | no |
+| 6 | L42 | 64 | 22 | no |
+| 7 | L34 | 22 | 88 | no |
+| 8 | L32 | 88 | 56 | no |
+| 9 | L13 | 56 | 43 | no |
+| 10 | L15 | 43 | 28 | no |
+
+* Local Variables
+
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:
