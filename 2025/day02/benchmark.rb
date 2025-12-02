@@ -6,6 +6,23 @@
 require 'benchmark'
 require_relative 'solution'
 
+# System info
+def system_info
+  info = []
+  info << `uname -a`.strip
+
+  # FreeBSD
+  if File.exist?('/sbin/sysctl')
+    model = `sysctl -n hw.model 2>/dev/null`.strip
+    ncpu = `sysctl -n hw.ncpu 2>/dev/null`.strip
+    mem = `sysctl -n hw.physmem 2>/dev/null`.strip.to_i / (1024**3)
+    info << "CPU: #{model}, #{ncpu} cores, #{mem}GB RAM"
+  end
+
+  info << "Ruby: #{RUBY_VERSION} [#{RUBY_PLATFORM}]"
+  info.join("\n")
+end
+
 # Generate synthetic input with ranges of specified sizes
 def generate_input(range_specs)
   range_specs.map { |start, size| "#{start}-#{start + size}" }.join(',')
@@ -60,8 +77,8 @@ def run_benchmark(scenario_name, range_specs, strategies)
 
   Benchmark.bm(15) do |x|
     strategies.each do |strategy|
-      # Skip brute force for large inputs
-      if strategy != :multiplier && total_numbers > 1_000_000
+      # Skip brute force for very large inputs (> 3M)
+      if strategy != :multiplier && total_numbers > 3_000_000
         puts "  #{strategy.to_s.ljust(15)} (skipped - too slow for #{format_number(total_numbers)} numbers)"
         next
       end
@@ -87,7 +104,9 @@ end
 
 # Main benchmark run
 puts "Day 02: Gift Shop - Strategy Benchmark"
-puts "Ruby #{RUBY_VERSION}"
+puts "-" * 70
+puts system_info
+puts "-" * 70
 puts Time.now
 puts
 
