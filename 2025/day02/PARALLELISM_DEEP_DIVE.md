@@ -1,0 +1,267 @@
+# Deep Dive: Parallel & Distributed Computing Approaches
+
+## Current Results Summary
+
+| Strategy | 200M numbers | Why? |
+|----------|--------------|------|
+| brute_force | ~70s (est) | Single thread, GVL bound |
+| ractor_optimized | 46.6s | Threads share Ruby runtime |
+| parallel_brute | 27.8s | fork() bypasses GVL |
+| multiplier | 0.00003s | Math, no iteration |
+
+## Why Ractors Underperform
+
+Ruby's Global VM Lock (GVL) allows only one thread to execute Ruby code at a time. Ractors were designed to bypass this, but:
+
+1. **String operations still serialize**: `n.to_s`, string slicing may hit shared resources
+2. **Memory isolation overhead**: Each Ractor has isolated heap, requiring deep copies
+3. **Experimental status**: Ruby 3.3 Ractors aren't fully optimized yet
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Ruby Process                            │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
+│  │ Ractor1 │  │ Ractor2 │  │ Ractor3 │  │ Ractor4 │       │
+│  │ (heap)  │  │ (heap)  │  │ (heap)  │  │ (heap)  │       │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘       │
+│       │            │            │            │             │
+│       └────────────┴─────┬──────┴────────────┘             │
+│                          │                                  │
+│                   ┌──────▼──────┐                          │
+│                   │ Shared Ruby │  ← Some operations       │
+│                   │   Runtime   │    still serialize       │
+│                   └─────────────┘                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Why `parallel` Gem Wins
+
+The parallel gem uses `fork()` on Unix systems:
+
+```
+┌──────────────┐   fork()   ┌──────────────┐
+│   Parent     │ ────────▶  │   Child 1    │  Completely separate
+│   Process    │            │   Process    │  Ruby VM
+└──────────────┘            └──────────────┘
+       │
+       │         fork()     ┌──────────────┐
+       └──────────────────▶ │   Child 2    │  Copy-on-write memory
+                            │   Process    │
+                            └──────────────┘
+```
+
+Benefits:
+- Each process has its own GVL (no contention)
+- Copy-on-write means memory is shared until modified
+- True parallel execution on multiple cores
+
+---
+
+## Alternative Architectures
+
+### 1. POSIX Shared Memory + Semaphores
+
+FreeBSD supports System V and POSIX IPC. We could:
+
+```ruby
+# Conceptual - not actual Ruby code
+# Workers write results to shared memory segments
+# Coordinator uses semaphores for synchronization
+
+require 'fiddle'
+
+# Create shared memory
+shm_fd = shm_open("/aoc_results", O_CREAT | O_RDWR, 0666)
+ftruncate(shm_fd, size)
+results = mmap(nil, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)
+
+# Create semaphore for coordination
+sem = sem_open("/aoc_sem", O_CREAT, 0666, 0)
+
+# Fork workers
+4.times do |i|
+  fork do
+    partial_sum = compute_range(ranges[i])
+    results[i * 8, 8] = [partial_sum].pack('Q')  # Write to shared mem
+    sem_post(sem)  # Signal completion
+  end
+end
+
+# Wait for all workers
+4.times { sem_wait(sem) }
+total = results.unpack('Q*').sum
+```
+
+### 2. Unix Domain Sockets (FIFO)
+
+```
+┌────────────┐                              ┌────────────┐
+│ Coordinator│◄────── /tmp/aoc_results ◄────│  Worker 1  │
+│            │        (Unix socket)         └────────────┘
+│            │◄──────────────────────────── ┌────────────┐
+│            │                              │  Worker 2  │
+└────────────┘                              └────────────┘
+```
+
+```ruby
+# coordinator.rb
+require 'socket'
+
+server = UNIXServer.new('/tmp/aoc.sock')
+workers = 4.times.map do |i|
+  fork do
+    socket = UNIXSocket.new('/tmp/aoc.sock')
+    result = compute_range(i)
+    socket.puts(result)
+    socket.close
+  end
+end
+
+total = 4.times.sum { server.accept.gets.to_i }
+```
+
+### 3. Named Pipes (FIFOs) on FreeBSD
+
+```bash
+# Create named pipes
+mkfifo /tmp/aoc_worker_0
+mkfifo /tmp/aoc_worker_1
+mkfifo /tmp/aoc_worker_2
+mkfifo /tmp/aoc_worker_3
+```
+
+```ruby
+# Each worker writes to its pipe
+File.open("/tmp/aoc_worker_#{worker_id}", 'w') do |pipe|
+  pipe.puts compute_range(my_range)
+end
+
+# Coordinator reads from all pipes
+total = 4.times.sum do |i|
+  File.read("/tmp/aoc_worker_#{i}").to_i
+end
+```
+
+### 4. Memory-Mapped File (Disk-Based State)
+
+```ruby
+require 'mmap'  # hypothetical gem
+
+# Create a memory-mapped file for shared state
+File.write('/tmp/aoc_state', "\0" * 1024)
+state = Mmap.new('/tmp/aoc_state', 'rw')
+
+# Workers write to specific offsets
+fork do
+  result = compute_range(0..50_000_000)
+  state[0, 8] = [result].pack('Q')
+end
+
+# Coordinator reads aggregated results
+Process.waitall
+total = state[0, 32].unpack('Q*').sum
+```
+
+### 5. Redis/Message Queue (Distributed)
+
+For truly distributed computing across machines:
+
+```ruby
+require 'redis'
+
+# Workers (can run on different machines)
+redis = Redis.new
+result = compute_range(ENV['RANGE'])
+redis.lpush('aoc:results', result)
+
+# Coordinator
+redis = Redis.new
+results = 4.times.map { redis.brpop('aoc:results', timeout: 60)[1].to_i }
+total = results.sum
+```
+
+### 6. Event-Driven with kqueue (FreeBSD Native)
+
+FreeBSD's kqueue is more efficient than Linux's epoll:
+
+```ruby
+require 'kqueue'  # hypothetical
+
+kq = KQueue.new
+pipes = 4.times.map { IO.pipe }
+
+# Register read ends for events
+pipes.each { |r, _| kq.add(r, :read) }
+
+# Fork workers
+pipes.each_with_index do |(_, w), i|
+  fork do
+    result = compute_range(ranges[i])
+    w.puts(result)
+    w.close
+  end
+end
+
+# Event loop - non-blocking wait for all results
+results = []
+until results.size == 4
+  events = kq.poll
+  events.each do |ev|
+    results << ev.io.gets.to_i
+    kq.delete(ev.io)
+  end
+end
+```
+
+---
+
+## Comparison Matrix
+
+| Approach | Complexity | Overhead | Scalability | FreeBSD Support |
+|----------|------------|----------|-------------|-----------------|
+| Ractors | Low | Medium | Single machine | ✓ |
+| fork/parallel | Low | Low | Single machine | ✓ |
+| Shared Memory | High | Very Low | Single machine | ✓ (POSIX) |
+| Unix Sockets | Medium | Low | Single machine | ✓ |
+| Named Pipes | Low | Low | Single machine | ✓ |
+| mmap Files | Medium | Medium | Single machine | ✓ |
+| Redis/MQ | Medium | High | Multi-machine | ✓ |
+| kqueue Events | High | Very Low | Single machine | ✓ (native) |
+
+---
+
+## Recommendation for This Problem
+
+For the "repeated digits" problem specifically:
+
+1. **Use the mathematical approach** - O(log n) beats any parallel O(n/p)
+2. **If forced to iterate**: Use `parallel` gem with processes
+3. **For learning**: Implement shared memory version to understand IPC
+
+The mathematical insight (pattern × (10^d + 1)) makes parallelism irrelevant here - but these techniques are valuable for problems that truly require iteration.
+
+---
+
+## FreeBSD-Specific Optimizations
+
+FreeBSD offers several advantages:
+
+1. **kqueue**: More efficient than Linux's epoll for event notification
+2. **Jails**: Lightweight containers for isolation without VM overhead
+3. **Capsicum**: Capability-based security for sandboxing workers
+4. **NUMA support**: For multi-socket systems
+
+```ruby
+# Example: Using FreeBSD jails for worker isolation
+system("jail -c name=worker#{i} command=/usr/local/bin/ruby worker.rb")
+```
+
+---
+
+## Implementation TODO
+
+- [ ] Implement POSIX shared memory version
+- [ ] Implement Unix socket coordinator
+- [ ] Implement mmap-based state sharing
+- [ ] Benchmark all approaches on 200M numbers
+- [ ] Test kqueue event loop vs blocking reads
