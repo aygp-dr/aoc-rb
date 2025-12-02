@@ -18,7 +18,7 @@ TEMPLATES_DIR := templates
 # Files
 ORG_FILES := setup.org
 
-.PHONY: all deps check-deps tangle install test lint clean help
+.PHONY: all deps check-deps tangle install test lint clean help repl irb console
 
 all: check-deps tangle install
 
@@ -118,13 +118,25 @@ distclean: clean  ## Remove all generated files including tangled output
 	rm -rf $(BIN_DIR) $(LIB_DIR) $(SPEC_DIR) $(TEMPLATES_DIR)
 	rm -f .ruby-version Gemfile
 
+## REPL / Console
+
+repl: irb  ## Start Ruby REPL with AoC utilities loaded (alias for irb)
+
+irb:  ## Start IRB with AoC utilities loaded
+	@echo "Starting IRB with AoC utilities..."
+	@$(RUBY) -I$(LIB_DIR) -r aoc_utils -r aoc_debug -r repl_helpers -r irb -e "IRB.start"
+
+console:  ## Start Pry with AoC utilities (requires pry gem)
+	@echo "Starting Pry console with AoC utilities..."
+	@$(BUNDLE) exec pry -I$(LIB_DIR) -r aoc_utils -r aoc_debug
+
 ## Help
 
 help:  ## Show this help message
 	@echo "Advent of Code Ruby - Available targets:"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*## .*' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
 	@echo "  gmake                    # Check deps, tangle, install"

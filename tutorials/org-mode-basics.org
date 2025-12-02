@@ -1,0 +1,408 @@
+#+TITLE: Org Mode for AoC Development
+#+AUTHOR: AoC Ruby Tutorials
+#+PROPERTY: header-args :results output :exports both
+#+PROPERTY: header-args:ruby :session ruby-tutorial
+#+PROPERTY: header-args:elisp :lexical t
+#+STARTUP: overview
+
+* Introduction
+
+Org mode is Emacs' killer feature for literate programming. This tutorial
+covers everything you need for Advent of Code development.
+
+* Document Structure
+
+** Headlines
+
+Headlines create the document outline. Use =TAB= to cycle visibility.
+
+#+BEGIN_EXAMPLE
+,* Level 1 headline
+,** Level 2 headline
+,*** Level 3 headline
+#+END_EXAMPLE
+
+** Properties
+
+Properties set metadata for a subtree or document:
+
+#+BEGIN_EXAMPLE
+,#+PROPERTY: header-args:ruby :results output
+,#+STARTUP: overview
+
+,* My Section
+:PROPERTIES:
+:CUSTOM_ID: my-section
+:END:
+#+END_EXAMPLE
+
+** Links
+
+#+BEGIN_EXAMPLE
+[[https://adventofcode.com][Advent of Code]]
+[[file:solution.rb][Solution]]
+[[*My Section][Jump to section]]
+#+END_EXAMPLE
+
+Keybindings:
+- =C-c C-l= - Insert link
+- =C-c C-o= - Open link at point
+
+* Code Blocks (Babel)
+
+** Basic Syntax
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC ruby
+puts "Hello, AoC!"
+,#+END_SRC
+#+END_EXAMPLE
+
+Execute with =C-c C-c=:
+
+#+BEGIN_SRC ruby
+puts "Hello from Ruby #{RUBY_VERSION}!"
+#+END_SRC
+
+#+RESULTS:
+: Hello from Ruby 3.3.8!
+
+** Header Arguments
+
+| Argument | Values | Description |
+|----------+--------+-------------|
+| =:results= | output, value, silent | What to capture |
+| =:exports= | code, results, both, none | What to export |
+| =:session= | name | Persistent session |
+| =:tangle= | filename | Extract to file |
+| =:var= | name=value | Pass variables |
+| =:dir= | path | Working directory |
+| =:cache= | yes, no | Cache results |
+
+** Results Types
+
+*** Output (stdout)
+
+#+BEGIN_SRC ruby :results output
+3.times { |i| puts "Line #{i}" }
+#+END_SRC
+
+#+RESULTS:
+: Line 0
+: Line 1
+: Line 2
+
+*** Value (return value)
+
+#+BEGIN_SRC ruby :results value
+(1..10).sum
+#+END_SRC
+
+#+RESULTS:
+: 55
+
+*** Table output
+
+#+BEGIN_SRC ruby :results value table
+[['Name', 'Value'], ['Ruby', RUBY_VERSION], ['Platform', RUBY_PLATFORM]]
+#+END_SRC
+
+#+RESULTS:
+| Name     | Value           |
+| Ruby     | 3.3.8           |
+| Platform | amd64-freebsd14 |
+
+** Sessions
+
+Sessions maintain state between blocks:
+
+#+BEGIN_SRC ruby :session aoc
+@counter = 0
+def increment
+  @counter += 1
+end
+"Session initialized"
+#+END_SRC
+
+#+RESULTS:
+: Session initialized
+
+#+BEGIN_SRC ruby :session aoc
+increment
+increment
+"Counter is now #{@counter}"
+#+END_SRC
+
+#+RESULTS:
+: Counter is now 2
+
+** Named Blocks and Noweb
+
+Name a block to reference it:
+
+#+NAME: helper-function
+#+BEGIN_SRC ruby :tangle no
+def parse_input(text)
+  text.strip.lines.map(&:chomp)
+end
+#+END_SRC
+
+Reference with noweb syntax:
+
+#+BEGIN_SRC ruby :noweb yes :tangle solution.rb
+<<helper-function>>
+
+input = parse_input("line1\nline2\nline3")
+puts input.inspect
+#+END_SRC
+
+* Tangling (Extracting Code)
+
+** Basic Tangling
+
+#+BEGIN_EXAMPLE
+,#+PROPERTY: header-args:ruby :tangle solution.rb
+
+,#+BEGIN_SRC ruby
+#!/usr/bin/env ruby
+# This will be extracted to solution.rb
+,#+END_SRC
+#+END_EXAMPLE
+
+Tangle with: =C-c C-v t= or =M-x org-babel-tangle=
+
+** Selective Tangling
+
+#+BEGIN_SRC ruby :tangle yes
+# This block tangles (default file)
+#+END_SRC
+
+#+BEGIN_SRC ruby :tangle no
+# This block does NOT tangle
+#+END_SRC
+
+#+BEGIN_SRC ruby :tangle other.rb
+# This tangles to a different file
+#+END_SRC
+
+** Detangling (Syncing Back)
+
+Enable with =:comments link=:
+
+#+BEGIN_EXAMPLE
+,#+PROPERTY: header-args:ruby :tangle solution.rb :comments link
+
+,#+BEGIN_SRC ruby
+def solve(input)
+  # Edit this in solution.rb, then detangle
+end
+,#+END_SRC
+#+END_EXAMPLE
+
+The tangled file will have:
+
+#+BEGIN_EXAMPLE
+# [[file:solution.org::*Block Name][Block Name:1]]
+def solve(input)
+  # Edit this in solution.rb, then detangle
+end
+# Block Name:1 ends here
+#+END_EXAMPLE
+
+Detangle with: =M-x org-babel-detangle=
+
+* Tables
+
+** Creating Tables
+
+Type and press =TAB=:
+
+#+BEGIN_EXAMPLE
+| Name | Value |
+|-
+#+END_EXAMPLE
+
+Results in:
+
+| Name  | Value |
+|-------+-------|
+| Ruby  |  3.3  |
+| Emacs |    29 |
+
+** Table Formulas
+
+#+BEGIN_EXAMPLE
+| Item   | Qty | Price | Total     |
+|--------+-----+-------+-----------|
+| Apples |   5 |  1.20 |           |
+| Bread  |   2 |  3.50 |           |
+|--------+-----+-------+-----------|
+| Total  |     |       |           |
+,#+TBLFM: $4=$2*$3::@4$4=vsum(@2$4..@3$4)
+#+END_EXAMPLE
+
+- =C-c C-c= on =#+TBLFM= to calculate
+- =C-c }= to show row/column references
+
+** Tables from Code
+
+#+BEGIN_SRC ruby :results value table :colnames yes
+require 'benchmark'
+
+results = [['Method', 'Time (ms)']]
+results << ['loop', Benchmark.measure { 1_000_000.times { |i| i } }.real * 1000]
+results << ['each', Benchmark.measure { (1..1_000_000).each { |i| i } }.real * 1000]
+results
+#+END_SRC
+
+* Elisp Integration
+
+** Inline Elisp
+
+#+BEGIN_SRC elisp
+(format "Emacs version: %s" emacs-version)
+#+END_SRC
+
+#+RESULTS:
+: Emacs version: 29.4
+
+** Elisp Variables in Ruby
+
+#+BEGIN_SRC elisp :var x=42
+(format "x = %d, doubled = %d" x (* x 2))
+#+END_SRC
+
+#+RESULTS:
+: x = 42, doubled = 84
+
+** Calling Org Functions
+
+#+BEGIN_SRC elisp :results silent
+;; Tangle current buffer
+(org-babel-tangle)
+
+;; Execute all code blocks
+(org-babel-execute-buffer)
+
+;; Go to named block
+(org-babel-goto-named-src-block "helper-function")
+#+END_SRC
+
+* AoC-Specific Patterns
+
+** Solution Template
+
+#+BEGIN_EXAMPLE
+,#+TITLE: Day XX: Problem Name
+,#+PROPERTY: header-args:ruby :tangle solution.rb :comments link
+
+,* Problem Description
+
+Link: [[https://adventofcode.com/2024/day/XX][Day XX]]
+
+,* Part 1
+
+,#+NAME: part1
+,#+BEGIN_SRC ruby
+def part1(input)
+  # Solution
+end
+,#+END_SRC
+
+,* Part 2
+
+,#+NAME: part2
+,#+BEGIN_SRC ruby
+def part2(input)
+  # Solution
+end
+,#+END_SRC
+
+,* Main
+
+,#+BEGIN_SRC ruby :noweb yes
+<<part1>>
+<<part2>>
+
+input = File.read('input.txt')
+puts "Part 1: #{part1(input)}"
+puts "Part 2: #{part2(input)}"
+,#+END_SRC
+
+,* Tests
+
+,#+BEGIN_SRC ruby :results output
+sample = "test input"
+puts "Part 1 sample: #{part1(sample)}"
+,#+END_SRC
+#+END_EXAMPLE
+
+** Tracking Progress
+
+Use checkboxes:
+
+#+BEGIN_EXAMPLE
+,* 2024 Progress
+- [X] Day 01
+- [X] Day 02
+- [ ] Day 03
+#+END_EXAMPLE
+
+Or a table:
+
+| Day | Part 1 | Part 2 | Notes |
+|-----+--------+--------+-------|
+|   1 | [X]    | [X]    | Easy  |
+|   2 | [X]    | [ ]    | WIP   |
+|   3 | [ ]    | [ ]    |       |
+
+* Useful Keybindings
+
+| Key | Action |
+|-----+--------|
+| =TAB= | Cycle visibility / indent |
+| =S-TAB= | Cycle global visibility |
+| =C-c C-c= | Execute block / toggle checkbox |
+| =C-c C-v t= | Tangle |
+| =C-c C-v b= | Execute buffer |
+| =C-c C-v s= | Execute subtree |
+| =C-c '= | Edit block in native mode |
+| =C-c C-l= | Insert link |
+| =C-c C-o= | Open link |
+| =C-c C-e= | Export menu |
+| =M-RET= | Insert heading |
+| =M-S-RET= | Insert TODO heading |
+
+* Configuration
+
+Add to your Emacs config:
+
+#+BEGIN_SRC elisp :tangle no
+;; Enable languages for Babel
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((ruby . t)
+   (python . t)
+   (shell . t)
+   (emacs-lisp . t)))
+
+;; Don't ask before executing
+(setq org-confirm-babel-evaluate nil)
+
+;; Native fontification in code blocks
+(setq org-src-fontify-natively t)
+(setq org-src-tab-acts-natively t)
+
+;; Preserve indentation
+(setq org-src-preserve-indentation t)
+
+;; Default header args
+(setq org-babel-default-header-args:ruby
+      '((:results . "output")
+        (:exports . "both")))
+#+END_SRC
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

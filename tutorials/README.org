@@ -1,0 +1,140 @@
+#+TITLE: AoC Ruby Tutorials
+#+AUTHOR: AoC Ruby Project
+#+STARTUP: overview
+
+* Tutorial Index
+
+This directory contains tutorials for Advent of Code Ruby development,
+covering Ruby features, Org mode literate programming, debugging, and
+FreeBSD-specific profiling tools.
+
+** Available Tutorials
+
+| Tutorial | Description | Topics |
+|----------+-------------+--------|
+| [[file:org-mode-basics.org][Org Mode Basics]] | Literate programming with Org | Babel, tangling, sessions |
+| [[file:ruby-features.org][Ruby Features]] | Modern Ruby for AoC | Pattern matching, Data class, Ractors |
+| [[file:freebsd-profiling.org][FreeBSD Profiling]] | System-level Ruby profiling | Benchmark, DTrace, ktrace |
+| [[file:emacs-ruby-debugging.org][Emacs Ruby Debugging]] | IDE integration for debugging | debug gem, inf-ruby, TracePoint |
+| [[file:examples/][Examples]] | Standalone Ruby examples | Memoization, Church pairs, SICP |
+
+** Prerequisites
+
+- Ruby 3.0+ (3.4 for some features)
+- Emacs 29+ with Org mode
+- FreeBSD 14+ (for system profiling tutorials)
+
+** Quick Start
+
+1. Load the Emacs configuration:
+   #+BEGIN_SRC elisp :tangle no
+   (load-file "/path/to/aoc-rb/emacs/aoc-rb.el")
+   (aoc-rb-setup)
+   #+END_SRC
+
+2. Open any tutorial file
+
+3. Execute code blocks with =C-c C-c=
+
+** Tutorial Descriptions
+
+*** Org Mode Basics
+
+Learn Org mode essentials for AoC development:
+- Code block syntax and execution
+- Header arguments (=:results=, =:session=, =:tangle=)
+- Sessions for stateful development
+- Tangling code to files
+- Detangling edits back to Org
+
+*** Ruby Features
+
+Modern Ruby features (3.0+) useful for AoC:
+- Pattern matching (=case/in=, guards, find patterns)
+- Data class for immutable value objects
+- Ractors for parallelism
+- Endless method definitions
+- Numbered block parameters (=_1=, =_2=)
+
+*** Examples Directory
+
+Standalone Ruby scripts demonstrating core concepts:
+
+| File | Topic | Description |
+|------+-------+-------------|
+| =fib.rb= | Memoization | Fibonacci with Hash-based memoization |
+| =pairs.rb= | Closures | Church-encoded pairs (SICP 2.1.3) |
+| =sicp.rb= | Functional | Accumulate, map, filter, flatmap |
+| =ast_analysis.rb= | Metaprogramming | AST parsing with Ripper |
+| =contracts.rb= | Validation | Runtime type/value checking |
+| =tracing.rb= | Debugging | TracePoint, caller, binding inspection |
+| =threading.rb= | Concurrency | Thread pools, Mutex, producer-consumer |
+| =benchmarking.rb= | Performance | Benchmark, memory analysis, GC stats |
+| =ractors.rb= | Parallelism | Ractor examples (Ruby 3.0+) |
+
+**** Running Examples
+
+#+BEGIN_SRC sh
+# Run individual example
+ruby tutorials/examples/fib.rb
+
+# Run all examples
+for f in tutorials/examples/*.rb; do ruby "$f"; done
+#+END_SRC
+
+**** Running Specs
+
+#+BEGIN_SRC sh
+# Install dependencies first
+bundle install
+
+# Run example specs
+bundle exec rspec tutorials/examples/spec/
+
+# Run with documentation format
+bundle exec rspec tutorials/examples/spec/ --format doc
+#+END_SRC
+
+*** FreeBSD Profiling
+
+System-level profiling on FreeBSD:
+- Ruby Benchmark module
+- ObjectSpace memory analysis
+- GC statistics
+- YARV bytecode inspection
+- DTrace probes
+- ktrace/kdump for syscalls
+- procstat for process info
+
+*** Emacs Ruby Debugging
+
+Debugging and profiling within Emacs:
+- inf-ruby REPL integration
+- Ruby debug gem
+- Breakpoints and stepping
+- Compilation mode error navigation
+- Memory profiling functions
+- AST and bytecode inspection
+
+** Related Files
+
+| File | Purpose |
+|------+---------|
+| =emacs/aoc-rb.el= | Emacs configuration for Ruby/Org |
+| =lib/aoc_debug.rb= | Ruby debugging helper module |
+| =benchmarking.org= | Benchmarking methodology |
+| =algorithms-CLRS.org= | CLRS algorithm mapping |
+| =algorithms-sedgewick.org= | Sedgewick implementations |
+
+** Contributing
+
+Tutorials should:
+- Use Org mode format (not Markdown)
+- Include executable code examples
+- Have =#+RESULTS:= blocks showing output
+- End with =# Local Variables:= for =org-confirm-babel-evaluate: nil=
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

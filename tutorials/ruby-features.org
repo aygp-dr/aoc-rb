@@ -1,0 +1,532 @@
+#+TITLE: Ruby Features for AoC
+#+AUTHOR: AoC Ruby Tutorials
+#+PROPERTY: header-args:ruby :results output :exports both
+#+STARTUP: overview
+
+* Introduction
+
+This tutorial covers modern Ruby features (Ruby 3.0+) useful for Advent of Code,
+demonstrated with executable examples. Features are organized by the Ruby
+version that introduced them.
+
+Reference: [[https://docs.ruby-lang.org/en/3.3/][Ruby Documentation]]
+
+* Version Check
+
+#+BEGIN_SRC ruby
+puts "Ruby version: #{RUBY_VERSION}"
+puts "Ruby platform: #{RUBY_PLATFORM}"
+#+END_SRC
+
+#+RESULTS:
+: Ruby version: 3.3.8
+: Ruby platform: amd64-freebsd14
+
+* Ruby 3.4 Features
+
+** =it= - Implicit Block Parameter (Ruby 3.4)
+
+Ruby 3.4 introduces =it= as an alias for =_1= in blocks with a single parameter.
+
+#+BEGIN_SRC ruby
+# Ruby 3.4+
+# numbers.map { it * 2 }  # Same as _1 * 2
+
+# Until 3.4, use numbered parameters (Ruby 2.7+)
+numbers = [1, 2, 3, 4, 5]
+puts numbers.map { _1 * 2 }.inspect
+puts numbers.select { _1.odd? }.inspect
+puts numbers.reduce { _1 + _2 }
+#+END_SRC
+
+#+RESULTS:
+: [2, 4, 6, 8, 10]
+: [1, 3, 5]
+: 15
+
+** Prism Parser (Default)
+
+Ruby 3.4 uses Prism as the default parser (previously experimental in 3.3).
+
+Benefits:
+- Faster parsing
+- Better error messages
+- More accurate source locations
+
+#+BEGIN_SRC ruby
+# Prism provides better error messages
+# Try: ruby -e "def foo(bar"
+# Ruby 3.4 gives more context
+
+# Check parser in use
+if defined?(Prism)
+  puts "Prism parser available"
+else
+  puts "Using Ripper (Ruby < 3.4)"
+end
+
+require 'ripper'
+ast = Ripper.sexp('[1, 2, 3].map { _1 * 2 }')
+puts "AST parsed successfully" if ast
+#+END_SRC
+
+#+RESULTS:
+: Using Ripper (Ruby < 3.4)
+: AST parsed successfully
+
+** Modular GC
+
+Ruby 3.4 allows pluggable garbage collectors.
+
+#+BEGIN_SRC ruby
+# GC information
+puts "GC stats:"
+stats = GC.stat
+puts "  count: #{stats[:count]}"
+puts "  heap_allocated_pages: #{stats[:heap_allocated_pages]}"
+puts "  total_allocated_objects: #{stats[:total_allocated_objects]}"
+#+END_SRC
+
+#+RESULTS:
+: GC stats:
+:   count: 28
+:   heap_allocated_pages: 127
+:   total_allocated_objects: 500418
+
+* Pattern Matching Refinements
+
+Pattern matching was introduced in Ruby 2.7 and continues to improve.
+
+** Basic Patterns (Ruby 2.7+)
+
+#+BEGIN_SRC ruby
+def classify(data)
+  case data
+  in {type: "gem", value:}
+    "Gem worth #{value}"
+  in {type: "ore", weight:}
+    "Ore weighing #{weight}"
+  in [first, *rest]
+    "Array starting with #{first}, #{rest.size} more"
+  in Integer => n if n > 100
+    "Large number: #{n}"
+  else
+    "Unknown"
+  end
+end
+
+puts classify({type: "gem", value: 100})
+puts classify({type: "ore", weight: 50})
+puts classify([1, 2, 3, 4, 5])
+puts classify(150)
+puts classify("hello")
+#+END_SRC
+
+#+RESULTS:
+: Gem worth 100
+: Ore weighing 50
+: Array starting with 1, 4 more
+: Large number: 150
+: Unknown
+
+** Find Pattern (Ruby 3.0+)
+
+#+BEGIN_SRC ruby
+data = [1, 2, {special: true, value: 42}, 4, 5]
+
+case data
+in [*, {special: true, value: v}, *]
+  puts "Found special value: #{v}"
+end
+
+# Also works with ranges
+numbers = [1, 5, 10, 15, 20]
+case numbers
+in [*, (10..), *]
+  puts "Contains a number >= 10"
+end
+#+END_SRC
+
+#+RESULTS:
+: Found special value: 42
+: Contains a number >= 10
+
+** Rightward Assignment (Ruby 3.0+)
+
+#+BEGIN_SRC ruby
+# Extract values with =>
+{name: "Ruby", version: "3.4"} => {name:, version:}
+puts "#{name} #{version}"
+
+# Useful for AoC parsing
+"Player 1: 5" => /Player (\d+): (\d+)/ => match
+puts "Player #{match[1]} starts at #{match[2]}" if match
+#+END_SRC
+
+#+RESULTS:
+: Ruby 3.4
+: Player 1 starts at 5
+
+* Data Class (Ruby 3.2+)
+
+Immutable value objects - perfect for AoC data structures.
+
+#+BEGIN_SRC ruby
+# Define immutable value class
+Point = Data.define(:x, :y)
+
+p1 = Point.new(3, 4)
+puts "Point: #{p1}"
+puts "x=#{p1.x}, y=#{p1.y}"
+
+# Immutable - can't modify
+begin
+  p1.x = 5
+rescue => e
+  puts "Error: #{e.class}"
+end
+
+# Use with pattern matching
+case p1
+in Point[x:, y:] if x == y
+  puts "On diagonal"
+in Point[x: 0, y:]
+  puts "On Y axis"
+in Point[x:, y:]
+  puts "At (#{x}, #{y})"
+end
+
+# Create modified copy
+p2 = p1.with(x: 10)
+puts "New point: #{p2}"
+#+END_SRC
+
+#+RESULTS:
+: Point: #<data Point x=3, y=4>
+: x=3, y=4
+: Error: FrozenError
+: At (3, 4)
+: New point: #<data Point x=10, y=4>
+
+* Ractors (Ruby 3.0+)
+
+True parallel execution without GVL limitations.
+
+#+BEGIN_SRC ruby
+# Basic Ractor
+r = Ractor.new { 1 + 2 }
+puts "Result: #{r.take}"
+
+# Communication: send/receive (push model)
+r = Ractor.new do
+  msg = Ractor.receive
+  msg * 2
+end
+r.send(21)
+puts "Doubled: #{r.take}"
+
+# Multiple Ractors for parallel work
+def parallel_sum(ranges)
+  ractors = ranges.map do |range|
+    Ractor.new(range) do |r|
+      r.sum
+    end
+  end
+  ractors.map(&:take).sum
+end
+
+# Divide 1..1000 into 4 chunks
+chunks = [1..250, 251..500, 501..750, 751..1000]
+result = parallel_sum(chunks)
+puts "Parallel sum 1..1000: #{result}"
+puts "Verify: #{(1..1000).sum}"
+#+END_SRC
+
+#+RESULTS:
+: Result: 3
+: Doubled: 42
+: Parallel sum 1..1000: 500500
+: Verify: 500500
+
+** Shareable Objects
+
+#+BEGIN_SRC ruby
+# These can cross Ractor boundaries without copying:
+# - Immutable objects (frozen strings, integers, symbols)
+# - Classes and Modules
+# - Ractor-shareable objects
+
+# Make an object shareable
+config = Ractor.make_shareable({
+  max_iterations: 1000,
+  timeout: 30
+}.freeze)
+
+r = Ractor.new(config) do |cfg|
+  "Max iterations: #{cfg[:max_iterations]}"
+end
+puts r.take
+#+END_SRC
+
+#+RESULTS:
+: Max iterations: 1000
+
+* Fiber Scheduler (Ruby 3.0+)
+
+Non-blocking I/O with Fibers.
+
+#+BEGIN_SRC ruby
+# Fibers for coroutines
+fiber = Fiber.new do |initial|
+  puts "Started with: #{initial}"
+  result = Fiber.yield("First yield")
+  puts "Resumed with: #{result}"
+  "Final return"
+end
+
+puts fiber.resume("Hello")  # Starts fiber
+puts fiber.resume("World")  # Resumes fiber
+#+END_SRC
+
+#+RESULTS:
+: Started with: Hello
+: First yield
+: Resumed with: World
+: Final return
+
+* Endless Method Definition (Ruby 3.0+)
+
+Short syntax for one-line methods.
+
+#+BEGIN_SRC ruby
+# Traditional
+def square_old(x)
+  x ** 2
+end
+
+# Endless (Ruby 3.0+)
+def square(x) = x ** 2
+def double(x) = x * 2
+def greet(name) = "Hello, #{name}!"
+
+puts square(5)
+puts double(21)
+puts greet("AoC")
+
+# Chainable transformations for AoC
+def parse_line(line) = line.strip.split(',').map(&:to_i)
+def sum_pairs(pairs) = pairs.sum { |a, b| a + b }
+
+puts parse_line("1,2,3,4").inspect
+#+END_SRC
+
+#+RESULTS:
+: 25
+: 42
+: Hello, AoC!
+: [1, 2, 3, 4]
+
+* Hash Improvements
+
+** =Hash#except= (Ruby 3.0+)
+
+#+BEGIN_SRC ruby
+data = {a: 1, b: 2, c: 3, d: 4}
+
+# Remove specific keys
+puts data.except(:b, :d).inspect
+
+# Useful for AoC: filter out processed items
+state = {position: [0,0], visited: [[0,0]], steps: 0, debug: true}
+clean_state = state.except(:debug)
+puts clean_state.inspect
+#+END_SRC
+
+#+RESULTS:
+: {:a=>1, :c=>3}
+: {:position=>[0, 0], :visited=>[[0, 0]], :steps=>0}
+
+** =Hash#transform_keys= and =Hash#transform_values=
+
+#+BEGIN_SRC ruby
+scores = {"alice" => 100, "bob" => 85, "carol" => 92}
+
+# Symbolize keys
+puts scores.transform_keys(&:to_sym).inspect
+
+# Double all values
+puts scores.transform_values { _1 * 2 }.inspect
+
+# Combine for AoC data processing
+raw = {"1" => "10", "2" => "20", "3" => "30"}
+processed = raw.transform_keys(&:to_i).transform_values(&:to_i)
+puts processed.inspect
+#+END_SRC
+
+#+RESULTS:
+: {:alice=>100, :bob=>85, :carol=>92}
+: {"alice"=>200, "bob"=>170, "carol"=>184}
+: {1=>10, 2=>20, 3=>30}
+
+* Array Improvements
+
+** =Array#intersect?= (Ruby 3.1+)
+
+#+BEGIN_SRC ruby
+a = [1, 2, 3]
+b = [3, 4, 5]
+c = [6, 7, 8]
+
+puts "a intersects b? #{a.intersect?(b)}"
+puts "a intersects c? #{a.intersect?(c)}"
+
+# Useful for AoC: check overlapping regions
+region1 = (1..5).to_a
+region2 = (4..8).to_a
+puts "Regions overlap? #{region1.intersect?(region2)}"
+#+END_SRC
+
+#+RESULTS:
+: a intersects b? true
+: a intersects c? false
+: Regions overlap? true
+
+** =Enumerable#tally= with block (Ruby 3.1+)
+
+#+BEGIN_SRC ruby
+words = %w[apple banana apple cherry banana apple]
+
+# Basic tally
+puts words.tally.inspect
+
+# Tally with transformation (Ruby 3.1+)
+# words.tally { _1[0] }  # Count by first letter
+
+# For now, simulate with group_by
+by_letter = words.group_by { _1[0] }.transform_values(&:size)
+puts by_letter.inspect
+#+END_SRC
+
+#+RESULTS:
+: {"apple"=>3, "banana"=>2, "cherry"=>1}
+: {"a"=>3, "b"=>2, "c"=>1}
+
+* String Improvements
+
+** =String#bytesplice= (Ruby 3.2+)
+
+#+BEGIN_SRC ruby
+s = "Hello, World!"
+# s.bytesplice(7, 5, "Ruby")  # Ruby 3.2+
+
+# Alternative for older Ruby
+s = "Hello, World!"
+s[7, 5] = "Ruby"
+puts s
+#+END_SRC
+
+#+RESULTS:
+: Hello, Ruby!
+
+* Useful Patterns for AoC
+
+** Parsing with Pattern Matching
+
+#+BEGIN_SRC ruby
+# Parse "move 5 from 1 to 3"
+def parse_move(line)
+  case line
+  in /move (\d+) from (\d+) to (\d+)/ => m
+    {count: m[1].to_i, from: m[2].to_i, to: m[3].to_i}
+  else
+    nil
+  end
+end
+
+puts parse_move("move 5 from 1 to 3").inspect
+#+END_SRC
+
+#+RESULTS:
+: {:count=>5, :from=>1, :to=>3}
+
+** Grid Processing
+
+#+BEGIN_SRC ruby
+Position = Data.define(:row, :col) do
+  def neighbors
+    [[-1,0], [1,0], [0,-1], [0,1]].map do |dr, dc|
+      Position.new(row + dr, col + dc)
+    end
+  end
+
+  def manhattan(other)
+    (row - other.row).abs + (col - other.col).abs
+  end
+end
+
+pos = Position.new(5, 5)
+puts "Position: #{pos}"
+puts "Neighbors: #{pos.neighbors.map { "(#{_1.row},#{_1.col})" }.join(', ')}"
+puts "Distance to origin: #{pos.manhattan(Position.new(0, 0))}"
+#+END_SRC
+
+#+RESULTS:
+: Position: #<data Position row=5, col=5>
+: Neighbors: (4,5), (6,5), (5,4), (5,6)
+: Distance to origin: 10
+
+** Memoization with Hash
+
+#+BEGIN_SRC ruby
+# Fibonacci with automatic memoization
+fib = Hash.new do |h, n|
+  h[n] = n < 2 ? n : h[n-1] + h[n-2]
+end
+
+puts "fib(10) = #{fib[10]}"
+puts "fib(20) = #{fib[20]}"
+puts "Cache size: #{fib.size}"
+#+END_SRC
+
+#+RESULTS:
+: fib(10) = 55
+: fib(20) = 6765
+: Cache size: 21
+
+* Migration Notes
+
+** From Ruby 3.3 to 3.4
+
+Minor changes, mostly additions:
+- =it= keyword for blocks
+- Prism parser is default
+- Modular GC support
+
+** Common Gotchas
+
+#+BEGIN_SRC ruby
+# Numbered parameters (_1, _2) don't nest well
+# BAD:
+# arr.map { _1.select { _1 > 0 } }  # Inner _1 shadows outer!
+
+# GOOD:
+arr = [[1, -2, 3], [-4, 5, 6]]
+result = arr.map { |inner| inner.select { |x| x > 0 } }
+puts result.inspect
+#+END_SRC
+
+#+RESULTS:
+: [[1, 3], [5, 6]]
+
+* Resources
+
+- [[https://docs.ruby-lang.org/en/3.4/][Ruby 3.4 Documentation]]
+- [[https://www.ruby-lang.org/en/news/2024/12/25/ruby-3-4-0-released/][Ruby 3.4.0 Release Announcement]]
+- [[https://docs.ruby-lang.org/en/3.4/syntax/pattern_matching_rdoc.html][Pattern Matching Syntax]]
+- [[https://docs.ruby-lang.org/en/3.4/Ractor.html][Ractor Documentation]]
+- [[https://docs.ruby-lang.org/en/3.4/Data.html][Data Class]]
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# tmux-repl - Launch a tmux session with Ruby REPL and editor panes
+# Usage: bin/tmux-repl [session-name]
+
+set -e
+
+SESSION_NAME="${1:-aoc-rb}"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Check if tmux is available
+if ! command -v tmux &> /dev/null; then
+    echo "Error: tmux is not installed"
+    exit 1
+fi
+
+# Check if session already exists
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    echo "Session '$SESSION_NAME' already exists. Attaching..."
+    tmux attach-session -t "$SESSION_NAME"
+    exit 0
+fi
+
+# Create new session with editor pane
+cd "$PROJECT_ROOT"
+tmux new-session -d -s "$SESSION_NAME" -n "code"
+
+# Split horizontally for REPL (bottom 40%)
+tmux split-window -v -p 40
+
+# Start REPL in bottom pane
+tmux send-keys -t "$SESSION_NAME:code.1" "cd $PROJECT_ROOT && gmake repl" C-m
+
+# Return to top pane for editing
+tmux select-pane -t "$SESSION_NAME:code.0"
+
+# Create a second window for running tests/scripts
+tmux new-window -t "$SESSION_NAME" -n "run"
+tmux send-keys -t "$SESSION_NAME:run" "cd $PROJECT_ROOT" C-m
+
+# Create a third window for git operations
+tmux new-window -t "$SESSION_NAME" -n "git"
+tmux send-keys -t "$SESSION_NAME:git" "cd $PROJECT_ROOT && git status" C-m
+
+# Go back to first window
+tmux select-window -t "$SESSION_NAME:code"
+
+# Set some nice tmux options for the session
+tmux set-option -t "$SESSION_NAME" mouse on
+tmux set-option -t "$SESSION_NAME" history-limit 50000
+
+# Attach to the session
+echo "Created tmux session '$SESSION_NAME' with layout:"
+echo "  Window 1 (code): Editor + REPL"
+echo "  Window 2 (run):  Script execution"
+echo "  Window 3 (git):  Git operations"
+echo ""
+echo "Useful tmux keys:"
+echo "  C-b 0/1/2  - Switch windows"
+echo "  C-b o      - Switch panes"
+echo "  C-b d      - Detach session"
+echo "  C-b [      - Scroll mode (q to exit)"
+echo ""
+
+tmux attach-session -t "$SESSION_NAME"

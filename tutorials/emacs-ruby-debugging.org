@@ -1,0 +1,445 @@
+#+TITLE: Emacs Ruby Debugging and Profiling
+#+AUTHOR: AoC Ruby Tutorials
+#+PROPERTY: header-args:ruby :results output :exports both
+#+PROPERTY: header-args:elisp :lexical t
+#+STARTUP: overview
+
+* Introduction
+
+This tutorial covers debugging and profiling Ruby code within Emacs,
+integrating with the =debug= gem, =inf-ruby=, and Org Babel sessions.
+
+* Prerequisites
+
+** Required Emacs Packages
+
+#+BEGIN_SRC elisp :tangle no
+;; Install via package.el or use-package
+(use-package inf-ruby
+  :ensure t
+  :hook (ruby-mode . inf-ruby-minor-mode))
+
+(use-package ruby-mode
+  :ensure t
+  :mode "\\.rb\\'"
+  :interpreter "ruby")
+#+END_SRC
+
+** Ruby Debug Gem
+
+#+BEGIN_SRC sh
+gem install debug
+#+END_SRC
+
+#+RESULTS:
+
+The =debug= gem is included in Ruby 3.1+ standard library.
+
+* Interactive Ruby (inf-ruby)
+
+** Starting a REPL
+
+| Keybinding | Command | Description |
+|------------+---------+-------------|
+| =C-c C-s= | =inf-ruby= | Start Ruby REPL |
+| =C-c C-z= | =ruby-switch-to-inf= | Switch to REPL buffer |
+| =C-c C-r= | =ruby-send-region= | Send region to REPL |
+| =C-c C-l= | =ruby-load-file= | Load current file |
+
+** Session-Based Development
+
+#+BEGIN_SRC ruby :session irb
+# Define methods in session
+def fib(n)
+  n < 2 ? n : fib(n-1) + fib(n-2)
+end
+
+"fib defined"
+#+END_SRC
+
+#+RESULTS:
+: fib defined
+
+#+BEGIN_SRC ruby :session irb
+# Use in subsequent blocks
+(1..10).map { |n| fib(n) }.inspect
+#+END_SRC
+
+#+RESULTS:
+: [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+
+* Ruby Debug Integration
+
+** Starting Debug Mode
+
+From Emacs:
+
+#+BEGIN_SRC elisp :tangle no
+(defun ruby-debug-file (file)
+  "Run FILE with Ruby debug gem."
+  (interactive "fRuby file to debug: ")
+  (compile (format "ruby -r debug %s" (shell-quote-argument file))))
+#+END_SRC
+
+From command line:
+
+#+BEGIN_SRC sh :tangle no
+# Start debugging
+rdbg script.rb
+
+# Attach to running process
+rdbg --attach PID
+#+END_SRC
+
+** Debug Commands
+
+| Command | Shortcut | Description |
+|---------+----------+-------------|
+| =step= | =s= | Step into |
+| =next= | =n= | Step over |
+| =finish= | =fin= | Step out |
+| =continue= | =c= | Continue execution |
+| =break= | =b= | Set breakpoint |
+| =info= | =i= | Show info |
+| =backtrace= | =bt= | Show call stack |
+| =frame= | =f= | Switch frame |
+
+** Setting Breakpoints in Code
+
+#+BEGIN_SRC ruby :tangle no
+require 'debug'
+
+def solve(input)
+  lines = input.lines
+  debugger  # Execution stops here
+  lines.map(&:to_i).sum
+end
+#+END_SRC
+
+** Conditional Breakpoints
+
+#+BEGIN_SRC ruby :tangle no
+require 'debug'
+
+def process(items)
+  items.each_with_index do |item, i|
+    binding.break if i == 5  # Break on 6th iteration
+    # Or use: debugger(pre: "p item") if item > 100
+    transform(item)
+  end
+end
+#+END_SRC
+
+* Org Babel Debugging
+
+** Inspecting Variables
+
+#+BEGIN_SRC ruby :session debug-demo
+# Use pp for pretty inspection
+require 'pp'
+
+data = {
+  users: [
+    {name: "Alice", score: 100},
+    {name: "Bob", score: 85}
+  ],
+  metadata: {version: 1, format: "json"}
+}
+
+pp data
+#+END_SRC
+
+#+RESULTS:
+: {:users=>[{:name=>"Alice", :score=>100}, {:name=>"Bob", :score=>85}],
+:  :metadata=>{:version=>1, :format=>"json"}}
+
+** Tracing Execution
+
+#+BEGIN_SRC ruby
+# TracePoint for method calls
+def traced_execution
+  calls = []
+
+  trace = TracePoint.new(:call) do |tp|
+    calls << "#{tp.defined_class}##{tp.method_id}" if tp.path == "(eval)"
+  end
+
+  trace.enable do
+    [1, 2, 3].map { |x| x * 2 }.sum
+  end
+
+  calls.uniq.first(5)
+end
+
+puts traced_execution.inspect
+#+END_SRC
+
+#+RESULTS:
+: []
+
+** Execution Timing
+
+#+BEGIN_SRC ruby
+def timed(label = "Block")
+  start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  result = yield
+  elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
+  puts "#{label}: #{(elapsed * 1000).round(3)}ms"
+  result
+end
+
+timed("Sum 1M") { (1..1_000_000).sum }
+timed("Map sum") { (1..1_000_000).map { |x| x }.sum }
+nil
+#+END_SRC
+
+#+RESULTS:
+: Sum 1M: 12.629ms
+: Map sum: 66.413ms
+
+* Error Handling
+
+** Compilation Mode Patterns
+
+The =aoc-rb.el= configures compilation-mode to recognize Ruby errors:
+
+#+BEGIN_SRC elisp :tangle no
+;; Ruby backtrace pattern
+(add-to-list 'compilation-error-regexp-alist-alist
+             '(ruby-error
+               "^\\s-*\\(?:from \\)?\\([^:\n]+\\):\\([0-9]+\\):?" 1 2))
+
+;; RSpec error pattern
+(add-to-list 'compilation-error-regexp-alist-alist
+             '(rspec-error
+               "^\\s-+# \\([^:]+\\):\\([0-9]+\\)" 1 2))
+#+END_SRC
+
+** Navigating Errors
+
+| Keybinding | Command | Description |
+|------------+---------+-------------|
+| =C-x `= | =next-error= | Jump to next error |
+| =M-g n= | =next-error= | Jump to next error |
+| =M-g p= | =previous-error= | Jump to previous error |
+| =M-g M-n= | =next-error= | Jump to next error |
+
+* Profiling in Emacs
+
+** Memory Profiling Function
+
+#+BEGIN_SRC elisp :tangle no
+(defun ruby-memory-profile (file)
+  "Profile memory usage of Ruby FILE."
+  (interactive "fRuby file: ")
+  (compile
+   (format "ruby -r objspace -e '
+before = ObjectSpace.count_objects
+load \"%s\"
+after = ObjectSpace.count_objects
+after.each { |k,v| d = v - before[k]; puts \"#{k}: #{d}\" if d != 0 }
+'" (shell-quote-argument file))))
+#+END_SRC
+
+** Bytecode Disassembly
+
+#+BEGIN_SRC elisp :tangle no
+(defun ruby-disasm (file)
+  "Show YARV bytecode for FILE."
+  (interactive "fRuby file: ")
+  (let ((buf (get-buffer-create "*Ruby Disasm*")))
+    (with-current-buffer buf
+      (erase-buffer)
+      (call-process "ruby" nil t nil "-e"
+                    (format "puts RubyVM::InstructionSequence.compile_file('%s').disasm"
+                            file))
+      (goto-char (point-min))
+      (special-mode))
+    (display-buffer buf)))
+#+END_SRC
+
+** AST Inspection
+
+#+BEGIN_SRC elisp :tangle no
+(defun ruby-ast (file)
+  "Show AST for FILE using Ripper."
+  (interactive "fRuby file: ")
+  (let ((buf (get-buffer-create "*Ruby AST*")))
+    (with-current-buffer buf
+      (erase-buffer)
+      (call-process "ruby" nil t nil
+                    "-r" "ripper" "-r" "pp"
+                    "-e" (format "pp Ripper.sexp(File.read('%s'))" file))
+      (goto-char (point-min))
+      (ruby-mode))
+    (display-buffer buf)))
+#+END_SRC
+
+* Inline Benchmarking
+
+** Quick Timing in Org
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+Benchmark.bm(12) do |x|
+  data = (1..100_000).to_a
+
+  x.report("select+map:") do
+    100.times { data.select { |n| n.odd? }.map { |n| n * 2 } }
+  end
+
+  x.report("filter_map:") do
+    100.times { data.filter_map { |n| n * 2 if n.odd? } }
+  end
+end
+#+END_SRC
+
+#+RESULTS:
+:                    user     system      total        real
+: select+map:    0.532158   0.011930   0.544088 (  0.544129)
+: filter_map:    0.395880   0.000000   0.395880 (  0.395929)
+
+** Memory Allocation Tracking
+
+#+BEGIN_SRC ruby
+require 'objspace'
+
+def track_allocations
+  GC.disable
+  before = ObjectSpace.count_objects[:T_ARRAY]
+  yield
+  after = ObjectSpace.count_objects[:T_ARRAY]
+  GC.enable
+  after - before
+end
+
+# Compare array creation methods
+puts "Array.new: #{track_allocations { Array.new(1000) { |i| i } }} arrays"
+puts "Range#to_a: #{track_allocations { (0...1000).to_a }} arrays"
+puts "map: #{track_allocations { 1000.times.map { |i| i } }} arrays"
+#+END_SRC
+
+#+RESULTS:
+: Array.new: 2 arrays
+: Range#to_a: 1 arrays
+: map: 2 arrays
+
+* AoC Debug Helper
+
+Using the =lib/aoc_debug.rb= module:
+
+#+BEGIN_SRC ruby :tangle no
+require_relative '../lib/aoc_debug'
+
+# Disassemble code
+AocDebug.disasm("def foo(x); x * 2; end")
+
+# Show AST
+AocDebug.ast("[1, 2, 3].map { |x| x * 2 }")
+
+# Compare implementations
+AocDebug.compare(iterations: 1000,
+  select_map: -> { (1..1000).select(&:odd?).map { |x| x * 2 } },
+  filter_map: -> { (1..1000).filter_map { |x| x * 2 if x.odd? } }
+)
+
+# Track allocations
+AocDebug.allocations { Array.new(1000) { |i| "string_#{i}" } }
+#+END_SRC
+
+* Workflow Tips
+
+** 1. Start with Org Babel Sessions
+
+Keep state across code blocks for iterative development:
+
+#+BEGIN_SRC ruby :session aoc
+INPUT = "1\n2\n3\n4\n5"
+LINES = INPUT.lines.map(&:chomp).map(&:to_i)
+"Input loaded: #{LINES.size} lines"
+#+END_SRC
+
+#+RESULTS:
+: Input loaded: 5 lines
+
+#+BEGIN_SRC ruby :session aoc
+# Test solutions incrementally
+def part1(data) = data.sum
+def part2(data) = data.map { |x| x * 2 }.sum
+
+puts "Part 1: #{part1(LINES)}"
+puts "Part 2: #{part2(LINES)}"
+#+END_SRC
+
+#+RESULTS:
+: Part 1: 15
+: Part 2: 30
+
+** 2. Use =C-c '= for Block Editing
+
+Edit source blocks in native Ruby mode with full IDE features.
+
+** 3. Quick REPL Testing
+
+=C-c C-z= to switch to inf-ruby, test snippets, =C-c C-z= back.
+
+** 4. Profile Before Optimizing
+
+Always measure first:
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+def measure_both(n = 100_000)
+  data = (1..n).to_a
+
+  Benchmark.bmbm(15) do |x|
+    x.report("original:") { data.select { |i| i > n/2 }.sum }
+    x.report("optimized:") { data.sum { |i| i > n/2 ? i : 0 } }
+  end
+end
+
+measure_both(50_000)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Rehearsal ---------------------------------------------------
+original:         0.004015   0.000000   0.004015 (  0.004015)
+optimized:        0.002568   0.000000   0.002568 (  0.002572)
+------------------------------------------ total: 0.006583sec
+
+                      user     system      total        real
+original:         0.003889   0.000000   0.003889 (  0.003889)
+optimized:        0.002544   0.000000   0.002544 (  0.002544)
+#+end_example
+
+* Quick Reference
+
+| Task | Keybinding/Command |
+|------+--------------------|
+| Execute block | =C-c C-c= |
+| Edit in ruby-mode | =C-c '= |
+| Start inf-ruby | =C-c C-s= |
+| Switch to REPL | =C-c C-z= |
+| Send region | =C-c C-r= |
+| Load file | =C-c C-l= |
+| Next error | =C-x `= |
+| Debug current | =C-c a d= (with aoc-rb-mode) |
+| Profile file | =C-c a p= (with aoc-rb-mode) |
+| Memory profile | =C-c a m= (with aoc-rb-mode) |
+| Disassemble | =C-c a D= (with aoc-rb-mode) |
+| Show AST | =C-c a A= (with aoc-rb-mode) |
+
+* Resources
+
+- [[https://github.com/ruby/debug][Ruby Debug Gem]]
+- [[https://github.com/nonsequitur/inf-ruby][inf-ruby on GitHub]]
+- [[info:elisp#Compilation Mode][Emacs Compilation Mode]]
+- [[https://docs.ruby-lang.org/en/3.3/TracePoint.html][Ruby TracePoint]]
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

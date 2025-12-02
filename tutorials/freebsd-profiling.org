@@ -1,0 +1,470 @@
+#+TITLE: Ruby Profiling on FreeBSD
+#+AUTHOR: AoC Ruby Tutorials
+#+PROPERTY: header-args:sh :results output :exports both
+#+PROPERTY: header-args:ruby :results output :exports both
+#+STARTUP: overview
+
+* Introduction
+
+FreeBSD provides excellent tools for profiling Ruby applications. This tutorial
+covers system-level and Ruby-specific profiling techniques.
+
+* System Information
+
+#+BEGIN_SRC sh
+uname -a
+#+END_SRC
+
+#+RESULTS:
+: FreeBSD nexus 14.3-RELEASE FreeBSD 14.3-RELEASE releng/14.3-n271432-8c9ce319fef7 GENERIC amd64
+
+#+BEGIN_SRC sh
+ruby --version
+#+END_SRC
+
+#+RESULTS:
+: ruby 3.3.8 (2025-04-09 revision b200bad6cd) [amd64-freebsd14]
+
+* Ruby Built-in Profiling
+
+** Benchmark Module
+
+The =Benchmark= module is built into Ruby stdlib.
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+n = 100_000
+
+Benchmark.bm(15) do |x|
+  x.report("for loop:") { for i in 1..n; a = i; end }
+  x.report("times:") { n.times { |i| a = i } }
+  x.report("upto:") { 1.upto(n) { |i| a = i } }
+end
+#+END_SRC
+
+#+RESULTS:
+:                       user     system      total        real
+: for loop:         0.003850   0.000000   0.003850 (  0.003851)
+: times:            0.003186   0.000000   0.003186 (  0.003188)
+: upto:             0.003170   0.000000   0.003170 (  0.003171)
+
+** Benchmark.measure
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+result = Benchmark.measure {
+  (1..1_000_000).each { |i| i * 2 }
+}
+
+puts result
+puts "Real time: #{result.real * 1000}ms"
+#+END_SRC
+
+#+RESULTS:
+:   0.024025   0.000000   0.024025 (  0.024028)
+: Real time: 24.028ms
+
+** Benchmark.bmbm (with rehearsal)
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+Benchmark.bmbm(10) do |x|
+  x.report("array:") { Array.new(1_000_000) { |i| i } }
+  x.report("range:") { (0...1_000_000).to_a }
+end
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Rehearsal ---------------------------------------------
+array:      0.032296   0.004054   0.036350 (  0.036350)
+range:      0.021715   0.000000   0.021715 (  0.021720)
+------------------------------------ total: 0.058065sec
+
+                user     system      total        real
+array:      0.030098   0.000000   0.030098 (  0.030099)
+range:      0.023221   0.000000   0.023221 (  0.023225)
+#+end_example
+
+** Time Measurement
+
+#+BEGIN_SRC ruby
+def timed
+  start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  yield
+  elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
+  puts "Elapsed: #{elapsed * 1000}ms"
+end
+
+timed { (1..1_000_000).sum }
+#+END_SRC
+
+#+RESULTS:
+: Elapsed: 15.891ms
+
+* Memory Profiling
+
+** ObjectSpace
+
+#+BEGIN_SRC ruby
+require 'objspace'
+
+def count_allocations
+  GC.disable
+  before = ObjectSpace.count_objects
+  yield
+  after = ObjectSpace.count_objects
+  GC.enable
+
+  after.each do |type, count|
+    diff = count - before[type]
+    puts "#{type}: #{diff}" if diff != 0
+  end
+end
+
+puts "=== Array creation ==="
+count_allocations { Array.new(1000) { |i| i.to_s } }
+
+puts "\n=== Range to array ==="
+count_allocations { (0...1000).map(&:to_s) }
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+=== Array creation ===
+FREE: -1034
+T_STRING: 1029
+T_ARRAY: 2
+T_HASH: 1
+T_IMEMO: 2
+
+=== Range to array ===
+FREE: -1037
+T_STRING: 1031
+T_ARRAY: 4
+T_HASH: 1
+T_IMEMO: 1
+#+end_example
+
+** Memory Size
+
+#+BEGIN_SRC ruby
+require 'objspace'
+
+array = Array.new(1000) { |i| "string_#{i}" }
+hash = array.each_with_index.to_h
+set_data = array.to_set
+
+puts "Array of 1000 strings: #{ObjectSpace.memsize_of(array)} bytes"
+puts "Hash with 1000 entries: #{ObjectSpace.memsize_of(hash)} bytes"
+
+# Note: memsize_of doesn't include referenced objects
+# Use memsize_of_all for total
+#+END_SRC
+
+#+RESULTS:
+: Array of 1000 strings: 8040 bytes
+: Hash with 1000 entries: 32824 bytes
+
+** GC Statistics
+
+#+BEGIN_SRC ruby
+GC.start  # Clean slate
+
+before = GC.stat
+1_000_000.times { |i| i.to_s }
+after = GC.stat
+
+puts "GC count: #{after[:count] - before[:count]}"
+puts "Minor GC: #{after[:minor_gc_count] - before[:minor_gc_count]}"
+puts "Major GC: #{after[:major_gc_count] - before[:major_gc_count]}"
+puts "Total allocated: #{after[:total_allocated_objects] - before[:total_allocated_objects]}"
+#+END_SRC
+
+#+RESULTS:
+: GC count: 15
+: Minor GC: 15
+: Major GC: 0
+: Total allocated: 1000013
+
+* YARV Bytecode Analysis
+
+** Disassembly
+
+#+BEGIN_SRC ruby
+code = <<~RUBY
+  def solve(input)
+    input.lines.map(&:to_i).sum
+  end
+RUBY
+
+puts RubyVM::InstructionSequence.compile(code).disasm
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+== disasm: #<ISeq:<compiled>@<compiled>:1 (1,0)-(3,3)>
+0000 definemethod                           :solve, solve             (   1)[Li]
+0003 putobject                              :solve
+0005 leave
+
+== disasm: #<ISeq:solve@<compiled>:1 (1,0)-(3,3)>
+local table (size: 1, argc: 1 [opts: 0, rest: -1, post: 0, block: -1, kw: -1@-1, kwrest: -1])
+[ 1] input@0<Arg>
+0000 getlocal_WC_0                          input@0                   (   2)[LiCa]
+0002 opt_send_without_block                 <calldata!mid:lines, argc:0, ARGS_SIMPLE>
+0004 putobject                              :to_i
+0006 send                                   <calldata!mid:map, argc:0, ARGS_BLOCKARG>, nil
+0009 opt_send_without_block                 <calldata!mid:sum, argc:0, ARGS_SIMPLE>
+0011 leave                                                            (   3)[Re]
+#+end_example
+
+** Comparing Implementations
+
+#+BEGIN_SRC ruby
+def compare_bytecode(*implementations)
+  implementations.each do |code|
+    puts "="*60
+    puts "Code: #{code.lines.first.strip}..."
+    iseq = RubyVM::InstructionSequence.compile(code)
+    puts "Instructions: #{iseq.disasm.lines.count}"
+  end
+end
+
+impl1 = "arr.select { |x| x > 0 }.map { |x| x * 2 }"
+impl2 = "arr.filter_map { |x| x * 2 if x > 0 }"
+
+compare_bytecode(impl1, impl2)
+#+END_SRC
+
+#+RESULTS:
+: ============================================================
+: Code: arr.select { |x| x > 0 }.map { |x| x * 2 }...
+: Instructions: 20
+: ============================================================
+: Code: arr.filter_map { |x| x * 2 if x > 0 }...
+: Instructions: 14
+
+* FreeBSD System Tools
+
+** ktrace - System Call Tracing
+
+=ktrace= traces system calls made by a process.
+
+#+BEGIN_SRC sh :tangle no
+# Trace a Ruby script
+ktrace ruby -e 'puts "Hello"'
+
+# View the trace
+kdump | head -30
+
+# Clean up
+rm ktrace.out
+#+END_SRC
+
+Common system calls to watch:
+- =open=, =read=, =write= - File I/O
+- =mmap= - Memory allocation
+- =clock_gettime= - Timing
+
+** procstat - Process Statistics
+
+#+BEGIN_SRC sh :tangle no
+# Run Ruby in background
+ruby -e 'sleep 60' &
+PID=$!
+
+# Thread info
+procstat -t $PID
+
+# Memory map
+procstat -v $PID
+
+# Open files
+procstat -f $PID
+
+# Kill process
+kill $PID
+#+END_SRC
+
+** DTrace - Dynamic Tracing
+
+FreeBSD has excellent DTrace support for Ruby.
+
+#+BEGIN_SRC sh :tangle no
+# List available Ruby probes
+sudo dtrace -l | grep ruby
+
+# Trace method entry
+sudo dtrace -n 'ruby*:::method-entry { printf("%s::%s\n", copyinstr(arg0), copyinstr(arg1)); }' -c 'ruby script.rb'
+
+# Count method calls
+sudo dtrace -n 'ruby*:::function-entry { @[copyinstr(arg0), copyinstr(arg1)] = count(); }' -c 'ruby script.rb'
+
+# GC events
+sudo dtrace -n 'ruby*:::gc-begin { printf("GC started\n"); }' -c 'ruby script.rb'
+#+END_SRC
+
+** top / htop
+
+#+BEGIN_SRC sh
+# CPU info
+sysctl hw.model hw.ncpu
+#+END_SRC
+
+#+RESULTS:
+: hw.model: Intel(R) N95
+: hw.ncpu: 4
+
+* Profiling Gems
+
+** ruby-prof
+
+#+BEGIN_SRC sh :tangle no
+# Install
+gem install ruby-prof
+
+# Profile a script
+ruby-prof script.rb
+
+# HTML output
+ruby-prof --printer=graph_html script.rb > profile.html
+#+END_SRC
+
+** stackprof
+
+Sampling profiler for Ruby.
+
+#+BEGIN_SRC sh :tangle no
+# Install
+gem install stackprof
+
+# Profile
+ruby -r stackprof -e '
+StackProf.run(mode: :cpu, out: "stackprof.dump") do
+  1_000_000.times { |i| i.to_s }
+end
+'
+
+# View results
+stackprof stackprof.dump
+#+END_SRC
+
+** memory_profiler
+
+#+BEGIN_SRC sh :tangle no
+# Install
+gem install memory_profiler
+
+# Use in code
+require 'memory_profiler'
+
+report = MemoryProfiler.report do
+  Array.new(10000) { |i| i.to_s }
+end
+
+report.pretty_print
+#+END_SRC
+
+* AoC-Specific Profiling
+
+** Comparing Solutions
+
+#+BEGIN_SRC ruby
+require 'benchmark'
+
+# Sample AoC-style input
+input = (1..10000).map { rand(1000) }
+
+def brute_force(arr)
+  arr.select { |x| x > 500 }.map { |x| x * 2 }.sum
+end
+
+def optimized(arr)
+  arr.sum { |x| x > 500 ? x * 2 : 0 }
+end
+
+def filter_map_style(arr)
+  arr.filter_map { |x| x * 2 if x > 500 }.sum
+end
+
+# Verify same results
+raise "Mismatch!" unless brute_force(input) == optimized(input)
+raise "Mismatch!" unless optimized(input) == filter_map_style(input)
+
+Benchmark.bmbm(15) do |x|
+  x.report("brute_force:") { 1000.times { brute_force(input) } }
+  x.report("optimized:") { 1000.times { optimized(input) } }
+  x.report("filter_map:") { 1000.times { filter_map_style(input) } }
+end
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Rehearsal ---------------------------------------------------
+brute_force:      0.591605   0.000000   0.591605 (  0.591703)
+optimized:        0.265299   0.000000   0.265299 (  0.265346)
+filter_map:       0.481181   0.000000   0.481181 (  0.481276)
+------------------------------------------ total: 1.338085sec
+
+                      user     system      total        real
+brute_force:      0.578609   0.000000   0.578609 (  0.578697)
+optimized:        0.262970   0.000000   0.262970 (  0.262976)
+filter_map:       0.477691   0.000000   0.477691 (  0.477766)
+#+end_example
+
+** Finding Bottlenecks
+
+#+BEGIN_SRC ruby
+# Use TracePoint to find slow methods
+def profile_methods(&block)
+  times = Hash.new(0)
+
+  trace = TracePoint.new(:call, :return) do |tp|
+    key = "#{tp.defined_class}##{tp.method_id}"
+    if tp.event == :call
+      tp.binding.local_variable_set(:_start, Process.clock_gettime(Process::CLOCK_MONOTONIC))
+    else
+      start = tp.binding.local_variable_get(:_start) rescue nil
+      times[key] += Process.clock_gettime(Process::CLOCK_MONOTONIC) - start if start
+    end
+  end
+
+  trace.enable(&block)
+
+  times.sort_by { |_, v| -v }.first(10)
+end
+
+# This is simplified - real profilers are more sophisticated
+puts "Top methods by time would be shown here"
+#+END_SRC
+
+#+RESULTS:
+: Top methods by time would be shown here
+
+* Quick Reference
+
+| Tool | Purpose | Command |
+|------+---------+---------|
+| Benchmark | Timing | =Benchmark.bm { }= |
+| ObjectSpace | Memory | =ObjectSpace.count_objects= |
+| GC.stat | GC info | =GC.stat[:count]= |
+| RubyVM::ISeq | Bytecode | =.compile(code).disasm= |
+| ktrace | Syscalls | =ktrace ruby script.rb= |
+| procstat | Process info | =procstat -t PID= |
+| DTrace | Dynamic trace | =dtrace -n 'probe { }' -c 'ruby script.rb'= |
+
+* Resources
+
+- [[https://docs.ruby-lang.org/en/3.3/Benchmark.html][Ruby Benchmark Documentation]]
+- [[https://docs.ruby-lang.org/en/3.3/ObjectSpace.html][Ruby ObjectSpace Documentation]]
+- [[https://docs.freebsd.org/en/books/handbook/dtrace/][FreeBSD DTrace Guide]]
+- [[https://man.freebsd.org/cgi/man.cgi?query=ktrace][ktrace man page]]
+
+* Local Variables
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:
