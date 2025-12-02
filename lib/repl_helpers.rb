@@ -401,6 +401,68 @@ module ReplHelpers
   end
 
   # ============================================================
+  # Modular Arithmetic / Dial Problems
+  # ============================================================
+
+  # Simulate positions on a circular dial
+  def dial_positions(start, turns, mod: 100)
+    turns.reduce([start]) { |acc, t| acc << ((acc.last + t) % mod) }
+  end
+
+  # Count how many times we cross/land on a target during rotation
+  # Note: "crossing" means passing through target, landing on it counts as crossing once
+  def count_crossings(start, turn, target: 0, mod: 100)
+    return 0 if turn == 0
+
+    end_pos = (start + turn) % mod
+
+    # Complete cycles (each full rotation crosses target once)
+    complete_cycles = turn.abs / mod
+
+    # Does the partial rotation cross target?
+    # For right turn (positive): we cross 0 if we wrap (start > end_pos)
+    # For left turn (negative): we cross 0 if we wrap (start < end_pos)
+    # But if we START at target, that doesn't count as a crossing
+    # If we END at target, that DOES count (we crossed onto it)
+    partial = turn.abs % mod
+
+    crosses = if turn > 0 # Clockwise/right
+                # Cross 0 if: start to end wraps, OR end == target
+                (end_pos < start && target < start && target >= end_pos) ||
+                (end_pos < start && target >= end_pos && start != target) ? 1 : 0
+              else # Counter-clockwise/left
+                (end_pos > start && target > start && target <= end_pos) ||
+                (end_pos > start && target <= end_pos && start != target) ? 1 : 0
+              end
+
+    # Simpler approach: just check if target is in the arc we traveled
+    # Actually let me use the original simpler logic but not double-count
+    crosses = if turn > 0
+                (start > end_pos || end_pos == target) && start != target ? 1 : 0
+              else
+                (start < end_pos || end_pos == target) && start != target ? 1 : 0
+              end
+
+    complete_cycles + crosses
+  end
+
+  # Solve dial rotation problem (Part 2 style - count all crossings)
+  def dial_solve(start, turns, target: 0, mod: 100, verbose: false)
+    pos = start
+    total = 0
+
+    turns.each do |turn|
+      crossings = count_crossings(pos, turn, target: target, mod: mod)
+      new_pos = (pos + turn) % mod
+      puts "pos=#{pos}, turn=#{turn}, new=#{new_pos}, crossings=#{crossings}" if verbose
+      total += crossings
+      pos = new_pos
+    end
+
+    total
+  end
+
+  # ============================================================
   # Debug Printing
   # ============================================================
 
