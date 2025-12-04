@@ -28,25 +28,39 @@ def solve_part1(input)
   accessible
 end
 
-# Test with example
-example = <<~INPUT
-..@@.@@@@.
-@@@.@.@.@@
-@@@@@.@.@@
-@.@@@@..@.
-@@.@@@@.@@
-.@@@@@@@.@
-.@.@.@.@@@
-@.@@@.@@@@
-.@@@@@@@@.
-@.@.@@@.@.
-INPUT
+# ==========================================================================
+# Tests
+# ==========================================================================
+if __FILE__ == $0
+  require_relative '../../lib/aoc_test'
+  include AocAssert
 
-puts "Example: #{solve_part1(example)}"
-# Expected: 13
+  EXAMPLE = <<~INPUT
+    ..@@.@@@@.
+    @@@.@.@.@@
+    @@@@@.@.@@
+    @.@@@@..@.
+    @@.@@@@.@@
+    .@@@@@@@.@
+    .@.@.@.@@@
+    @.@@@.@@@@
+    .@@@@@@@@.
+    @.@.@@@.@.
+  INPUT
 
-# Solve with actual input if available
-if File.exist?('2025/day04/input.txt')
-  input = File.read('2025/day04/input.txt')
-  puts "Part 1: #{solve_part1(input)}"
+  puts "Testing solve_part1:"
+  assert_eq 13, solve_part1(EXAMPLE), "Example grid"
+
+  # Edge cases
+  puts "\nEdge cases:"
+  assert_eq 1, solve_part1("@"), "single roll - 0 neighbors"
+  assert_eq 2, solve_part1("@@"), "two adjacent - 1 neighbor each"
+  assert_eq 4, solve_part1("@@@\n@@@\n@@@"), "3x3 full - corners have 3 neighbors"
+  assert_eq 4, solve_part1("@@\n@@"), "2x2 - each has 3 neighbors"
+
+  # Solve with actual input if available
+  if File.exist?(File.join(__dir__, 'input.txt'))
+    input = File.read(File.join(__dir__, 'input.txt'))
+    puts "\nPart 1: #{solve_part1(input)}"
+  end
 end
