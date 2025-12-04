@@ -11,11 +11,11 @@
 # - Hash for direction lookup
 
 require 'set'
+require_relative '../../lib/aoc_utils'
 
 class Day06
-  # Directions in clockwise order: up, right, down, left
-  # Using [dy, dx] format for screen coordinates (y increases downward)
-  DIRS = [[-1, 0], [0, 1], [1, 0], [0, -1]].freeze  # up, right, down, left
+  # Directions in clockwise order: up, right, down, left [dr, dc]
+  DIRS = [[-1, 0], [0, 1], [1, 0], [0, -1]].freeze
   DIR_CHARS = { '^' => 0, '>' => 1, 'v' => 2, '<' => 3 }.freeze
 
   def initialize(input)

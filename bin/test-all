@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+# Run all AoC solutions and report status
+
+require 'timeout'
+
+YEARS = (2015..2025).to_a
+TIMEOUT_SEC = 10
+
+results = []
+
+YEARS.each do |year|
+  Dir.glob("#{year}/day*/solution.rb").sort.each do |file|
+    day = file[/day(\d+)/, 1]
+
+    begin
+      output = nil
+      Timeout.timeout(TIMEOUT_SEC) do
+        output = `ruby #{file} 2>&1`
+      end
+
+      # Check if output has actual answers
+      part1 = output[/Part 1: (.+)/, 1]&.strip
+      part2 = output[/Part 2: (.+)/, 1]&.strip
+      example = output[/Example: (.+)/, 1]&.strip
+
+      status = if part1 && !part1.empty? && part1 != '0' && part1 != 'nil'
+                 "\e[32m✓\e[0m"
+               elsif example && !example.empty?
+                 "\e[33m~\e[0m"  # Example only
+               else
+                 "\e[31m✗\e[0m"
+               end
+
+      results << {
+        year: year,
+        day: day,
+        status: status,
+        part1: part1 || '-',
+        part2: part2 || '-'
+      }
+    rescue Timeout::Error
+      results << { year: year, day: day, status: "\e[33mT\e[0m", part1: 'timeout', part2: '-' }
+    rescue => e
+      results << { year: year, day: day, status: "\e[31mE\e[0m", part1: e.message[0..30], part2: '-' }
+    end
+  end
+end
+
+# Print results
+puts "AoC Solutions Test Results"
+puts "=" * 60
+puts "Legend: \e[32m✓\e[0m=pass \e[33m~\e[0m=example-only \e[31m✗\e[0m=fail \e[33mT\e[0m=timeout"
+puts
+
+current_year = nil
+results.each do |r|
+  if r[:year] != current_year
+    puts if current_year
+    puts "#{r[:year]}:"
+    current_year = r[:year]
+  end
+  puts "  Day #{r[:day].rjust(2)}: #{r[:status]} Part1=#{r[:part1][0..20]} Part2=#{r[:part2][0..20]}"
+end
+
+# Summary
+passed = results.count { |r| r[:status].include?('✓') }
+examples = results.count { |r| r[:status].include?('~') }
+failed = results.count { |r| r[:status].include?('✗') || r[:status].include?('E') }
+
+puts
+puts "=" * 60
+puts "Summary: #{passed} passed, #{examples} examples-only, #{failed} failed/missing"

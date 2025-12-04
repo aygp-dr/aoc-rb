@@ -172,8 +172,15 @@ module AocUtils
   # Grid Helpers
   # ============================================================
 
+  # Cardinal directions [dr, dc] - row/col deltas
   DIRECTIONS_4 = [[0, 1], [1, 0], [0, -1], [-1, 0]].freeze
   DIRECTIONS_8 = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]].freeze
+
+  # Short aliases for convenience
+  DIRS_4 = DIRECTIONS_4
+  DIRS_8 = DIRECTIONS_8
+
+  # Named direction mapping
   DIRECTION_NAMES = { 'N' => [-1, 0], 'S' => [1, 0], 'E' => [0, 1], 'W' => [0, -1],
                       'U' => [-1, 0], 'D' => [1, 0], 'R' => [0, 1], 'L' => [0, -1] }.freeze
 
