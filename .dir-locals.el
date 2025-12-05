@@ -1,4 +1,4 @@
-;;; Directory Local Variables for Advent of Code Ruby
+;;; Directory Local Variables for Ruby Patterns & Idioms
 ;;; For more information see (info "(emacs) Directory Variables")
 
 ((nil . ((fill-column . 80)
@@ -11,18 +11,28 @@
                (ruby-insert-encoding-magic-comment . nil)
                (eval . (when (fboundp 'rspec-mode) (rspec-mode 1)))
                (eval . (when (fboundp 'rubocop-mode) (rubocop-mode 1)))
+               ;; Ruby LSP (lsp-mode or eglot)
+               (eval . (when (and (fboundp 'lsp) (executable-find "solargraph"))
+                         (lsp-deferred)))
+               (eval . (when (and (fboundp 'eglot-ensure) (executable-find "solargraph"))
+                         (eglot-ensure)))
                ;; inf-ruby configuration for REPL
-               (eval . (setq-local inf-ruby-default-implementation "pry"))
-               (eval . (setq-local inf-ruby-first-prompt-pattern "^\\[AoC\\] [0-9]+> "))
-               (eval . (setq-local inf-ruby-prompt-pattern "^\\[AoC\\] [0-9]+[>*] "))))
+               (eval . (setq-local inf-ruby-default-implementation "irb"))
+               (eval . (setq-local inf-ruby-first-prompt-pattern "^irb([^)]+):[0-9]+> "))
+               (eval . (setq-local inf-ruby-prompt-pattern "^irb([^)]+):[0-9]+[>*] "))))
 
  (ruby-ts-mode . ((ruby-indent-level . 2)
                   (ruby-insert-encoding-magic-comment . nil)
                   (eval . (when (fboundp 'rspec-mode) (rspec-mode 1)))
                   (eval . (when (fboundp 'rubocop-mode) (rubocop-mode 1)))
-                  (eval . (setq-local inf-ruby-default-implementation "pry"))
-                  (eval . (setq-local inf-ruby-first-prompt-pattern "^\\[AoC\\] [0-9]+> "))
-                  (eval . (setq-local inf-ruby-prompt-pattern "^\\[AoC\\] [0-9]+[>*] "))))
+                  ;; Ruby LSP (lsp-mode or eglot)
+                  (eval . (when (and (fboundp 'lsp) (executable-find "solargraph"))
+                            (lsp-deferred)))
+                  (eval . (when (and (fboundp 'eglot-ensure) (executable-find "solargraph"))
+                            (eglot-ensure)))
+                  (eval . (setq-local inf-ruby-default-implementation "irb"))
+                  (eval . (setq-local inf-ruby-first-prompt-pattern "^irb([^)]+):[0-9]+> "))
+                  (eval . (setq-local inf-ruby-prompt-pattern "^irb([^)]+):[0-9]+[>*] "))))
 
  (org-mode . ((org-confirm-babel-evaluate . nil)
               (org-src-preserve-indentation . t)

@@ -1,23 +1,32 @@
-# Deep Dive: Parallel & Distributed Computing Approaches
+* Deep Dive: Parallel & Distributed Computing Approaches
+:PROPERTIES:
+:CUSTOM_ID: deep-dive-parallel-distributed-computing-approaches
+:END:
+** Current Results Summary
+:PROPERTIES:
+:CUSTOM_ID: current-results-summary
+:END:
+| Strategy         | 200M numbers | Why?                       |
+|------------------+--------------+----------------------------|
+| brute_force      | ~70s (est)   | Single thread, GVL bound   |
+| ractor_optimized | 46.6s        | Threads share Ruby runtime |
+| parallel_brute   | 27.8s        | fork() bypasses GVL        |
+| multiplier       | 0.00003s     | Math, no iteration         |
 
-## Current Results Summary
+** Why Ractors Underperform
+:PROPERTIES:
+:CUSTOM_ID: why-ractors-underperform
+:END:
+Ruby's Global VM Lock (GVL) allows only one thread to execute Ruby code
+at a time. Ractors were designed to bypass this, but:
 
-| Strategy | 200M numbers | Why? |
-|----------|--------------|------|
-| brute_force | ~70s (est) | Single thread, GVL bound |
-| ractor_optimized | 46.6s | Threads share Ruby runtime |
-| parallel_brute | 27.8s | fork() bypasses GVL |
-| multiplier | 0.00003s | Math, no iteration |
+1. *String operations still serialize*: =n.to_s=, string slicing may hit
+   shared resources
+2. *Memory isolation overhead*: Each Ractor has isolated heap, requiring
+   deep copies
+3. *Experimental status*: Ruby 3.3 Ractors aren't fully optimized yet
 
-## Why Ractors Underperform
-
-Ruby's Global VM Lock (GVL) allows only one thread to execute Ruby code at a time. Ractors were designed to bypass this, but:
-
-1. **String operations still serialize**: `n.to_s`, string slicing may hit shared resources
-2. **Memory isolation overhead**: Each Ractor has isolated heap, requiring deep copies
-3. **Experimental status**: Ruby 3.3 Ractors aren't fully optimized yet
-
-```
+#+begin_example
 ┌─────────────────────────────────────────────────────────────┐
 │                     Ruby Process                            │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
@@ -32,13 +41,15 @@ Ruby's Global VM Lock (GVL) allows only one thread to execute Ruby code at a tim
 │                   │   Runtime   │    still serialize       │
 │                   └─────────────┘                          │
 └─────────────────────────────────────────────────────────────┘
-```
+#+end_example
 
-## Why `parallel` Gem Wins
+** Why =parallel= Gem Wins
+:PROPERTIES:
+:CUSTOM_ID: why-parallel-gem-wins
+:END:
+The parallel gem uses =fork()= on Unix systems:
 
-The parallel gem uses `fork()` on Unix systems:
-
-```
+#+begin_example
 ┌──────────────┐   fork()   ┌──────────────┐
 │   Parent     │ ────────▶  │   Child 1    │  Completely separate
 │   Process    │            │   Process    │  Ruby VM
@@ -48,22 +59,25 @@ The parallel gem uses `fork()` on Unix systems:
        └──────────────────▶ │   Child 2    │  Copy-on-write memory
                             │   Process    │
                             └──────────────┘
-```
+#+end_example
 
-Benefits:
-- Each process has its own GVL (no contention)
-- Copy-on-write means memory is shared until modified
-- True parallel execution on multiple cores
+Benefits: - Each process has its own GVL (no contention) - Copy-on-write
+means memory is shared until modified - True parallel execution on
+multiple cores
 
----
+--------------
 
-## Alternative Architectures
-
-### 1. POSIX Shared Memory + Semaphores
-
+** Alternative Architectures
+:PROPERTIES:
+:CUSTOM_ID: alternative-architectures
+:END:
+*** 1. POSIX Shared Memory + Semaphores
+:PROPERTIES:
+:CUSTOM_ID: posix-shared-memory-semaphores
+:END:
 FreeBSD supports System V and POSIX IPC. We could:
 
-```ruby
+#+begin_src ruby
 # Conceptual - not actual Ruby code
 # Workers write results to shared memory segments
 # Coordinator uses semaphores for synchronization
@@ -90,20 +104,22 @@ end
 # Wait for all workers
 4.times { sem_wait(sem) }
 total = results.unpack('Q*').sum
-```
+#+end_src
 
-### 2. Unix Domain Sockets (FIFO)
-
-```
+*** 2. Unix Domain Sockets (FIFO)
+:PROPERTIES:
+:CUSTOM_ID: unix-domain-sockets-fifo
+:END:
+#+begin_example
 ┌────────────┐                              ┌────────────┐
 │ Coordinator│◄────── /tmp/aoc_results ◄────│  Worker 1  │
 │            │        (Unix socket)         └────────────┘
 │            │◄──────────────────────────── ┌────────────┐
 │            │                              │  Worker 2  │
 └────────────┘                              └────────────┘
-```
+#+end_example
 
-```ruby
+#+begin_src ruby
 # coordinator.rb
 require 'socket'
 
@@ -118,19 +134,21 @@ workers = 4.times.map do |i|
 end
 
 total = 4.times.sum { server.accept.gets.to_i }
-```
+#+end_src
 
-### 3. Named Pipes (FIFOs) on FreeBSD
-
-```bash
+*** 3. Named Pipes (FIFOs) on FreeBSD
+:PROPERTIES:
+:CUSTOM_ID: named-pipes-fifos-on-freebsd
+:END:
+#+begin_src sh
 # Create named pipes
 mkfifo /tmp/aoc_worker_0
 mkfifo /tmp/aoc_worker_1
 mkfifo /tmp/aoc_worker_2
 mkfifo /tmp/aoc_worker_3
-```
+#+end_src
 
-```ruby
+#+begin_src ruby
 # Each worker writes to its pipe
 File.open("/tmp/aoc_worker_#{worker_id}", 'w') do |pipe|
   pipe.puts compute_range(my_range)
@@ -140,11 +158,13 @@ end
 total = 4.times.sum do |i|
   File.read("/tmp/aoc_worker_#{i}").to_i
 end
-```
+#+end_src
 
-### 4. Memory-Mapped File (Disk-Based State)
-
-```ruby
+*** 4. Memory-Mapped File (Disk-Based State)
+:PROPERTIES:
+:CUSTOM_ID: memory-mapped-file-disk-based-state
+:END:
+#+begin_src ruby
 require 'mmap'  # hypothetical gem
 
 # Create a memory-mapped file for shared state
@@ -160,13 +180,15 @@ end
 # Coordinator reads aggregated results
 Process.waitall
 total = state[0, 32].unpack('Q*').sum
-```
+#+end_src
 
-### 5. Redis/Message Queue (Distributed)
-
+*** 5. Redis/Message Queue (Distributed)
+:PROPERTIES:
+:CUSTOM_ID: redismessage-queue-distributed
+:END:
 For truly distributed computing across machines:
 
-```ruby
+#+begin_src ruby
 require 'redis'
 
 # Workers (can run on different machines)
@@ -178,13 +200,15 @@ redis.lpush('aoc:results', result)
 redis = Redis.new
 results = 4.times.map { redis.brpop('aoc:results', timeout: 60)[1].to_i }
 total = results.sum
-```
+#+end_src
 
-### 6. Event-Driven with kqueue (FreeBSD Native)
-
+*** 6. Event-Driven with kqueue (FreeBSD Native)
+:PROPERTIES:
+:CUSTOM_ID: event-driven-with-kqueue-freebsd-native
+:END:
 FreeBSD's kqueue is more efficient than Linux's epoll:
 
-```ruby
+#+begin_src ruby
 require 'kqueue'  # hypothetical
 
 kq = KQueue.new
@@ -211,55 +235,65 @@ until results.size == 4
     kq.delete(ev.io)
   end
 end
-```
+#+end_src
 
----
+--------------
 
-## Comparison Matrix
+** Comparison Matrix
+:PROPERTIES:
+:CUSTOM_ID: comparison-matrix
+:END:
+| Approach      | Complexity | Overhead | Scalability    | FreeBSD Support |
+|---------------+------------+----------+----------------+-----------------|
+| Ractors       | Low        | Medium   | Single machine | ✓               |
+| fork/parallel | Low        | Low      | Single machine | ✓               |
+| Shared Memory | High       | Very Low | Single machine | ✓ (POSIX)       |
+| Unix Sockets  | Medium     | Low      | Single machine | ✓               |
+| Named Pipes   | Low        | Low      | Single machine | ✓               |
+| mmap Files    | Medium     | Medium   | Single machine | ✓               |
+| Redis/MQ      | Medium     | High     | Multi-machine  | ✓               |
+| kqueue Events | High       | Very Low | Single machine | ✓ (native)      |
 
-| Approach | Complexity | Overhead | Scalability | FreeBSD Support |
-|----------|------------|----------|-------------|-----------------|
-| Ractors | Low | Medium | Single machine | ✓ |
-| fork/parallel | Low | Low | Single machine | ✓ |
-| Shared Memory | High | Very Low | Single machine | ✓ (POSIX) |
-| Unix Sockets | Medium | Low | Single machine | ✓ |
-| Named Pipes | Low | Low | Single machine | ✓ |
-| mmap Files | Medium | Medium | Single machine | ✓ |
-| Redis/MQ | Medium | High | Multi-machine | ✓ |
-| kqueue Events | High | Very Low | Single machine | ✓ (native) |
+--------------
 
----
-
-## Recommendation for This Problem
-
+** Recommendation for This Problem
+:PROPERTIES:
+:CUSTOM_ID: recommendation-for-this-problem
+:END:
 For the "repeated digits" problem specifically:
 
-1. **Use the mathematical approach** - O(log n) beats any parallel O(n/p)
-2. **If forced to iterate**: Use `parallel` gem with processes
-3. **For learning**: Implement shared memory version to understand IPC
+1. *Use the mathematical approach* - O(log n) beats any parallel O(n/p)
+2. *If forced to iterate*: Use =parallel= gem with processes
+3. *For learning*: Implement shared memory version to understand IPC
 
-The mathematical insight (pattern × (10^d + 1)) makes parallelism irrelevant here - but these techniques are valuable for problems that truly require iteration.
+The mathematical insight (pattern × (10^d + 1)) makes parallelism
+irrelevant here - but these techniques are valuable for problems that
+truly require iteration.
 
----
+--------------
 
-## FreeBSD-Specific Optimizations
-
+** FreeBSD-Specific Optimizations
+:PROPERTIES:
+:CUSTOM_ID: freebsd-specific-optimizations
+:END:
 FreeBSD offers several advantages:
 
-1. **kqueue**: More efficient than Linux's epoll for event notification
-2. **Jails**: Lightweight containers for isolation without VM overhead
-3. **Capsicum**: Capability-based security for sandboxing workers
-4. **NUMA support**: For multi-socket systems
+1. *kqueue*: More efficient than Linux's epoll for event notification
+2. *Jails*: Lightweight containers for isolation without VM overhead
+3. *Capsicum*: Capability-based security for sandboxing workers
+4. *NUMA support*: For multi-socket systems
 
-```ruby
+#+begin_src ruby
 # Example: Using FreeBSD jails for worker isolation
 system("jail -c name=worker#{i} command=/usr/local/bin/ruby worker.rb")
-```
+#+end_src
 
----
+--------------
 
-## Implementation TODO
-
+** Implementation TODO
+:PROPERTIES:
+:CUSTOM_ID: implementation-todo
+:END:
 - [ ] Implement POSIX shared memory version
 - [ ] Implement Unix socket coordinator
 - [ ] Implement mmap-based state sharing

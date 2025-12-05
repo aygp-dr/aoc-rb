@@ -1,0 +1,90 @@
+* Day 1: Not Quite Lisp
+:PROPERTIES:
+:CUSTOM_ID: day-1-not-quite-lisp
+:END:
+[[https://adventofcode.com/2015/day/1][Advent of Code 2015 - Day 1]]
+
+** Problem
+:PROPERTIES:
+:CUSTOM_ID: problem
+:END:
+Santa is trying to deliver presents in a large apartment building, but
+he can't find the right floor. The instructions he has are a sequence of
+parentheses:
+
+- =(= means go *up* one floor
+- =)= means go *down* one floor
+
+Santa starts on the ground floor (floor 0).
+
+** Part 1
+:PROPERTIES:
+:CUSTOM_ID: part-1
+:END:
+*Task:* What floor do the instructions take Santa?
+
+*** Examples
+:PROPERTIES:
+:CUSTOM_ID: examples
+:END:
+| Input     | Result |
+|-----------+--------|
+| =(())=    | 0      |
+| =()()=    | 0      |
+| =(((=     | 3      |
+| =(()(()(= | 3      |
+| =))(((((= | 3      |
+| =())=     | -1     |
+| =))(=     | -1     |
+| =)))=     | -3     |
+| =)())())= | -3     |
+
+** Part 2
+:PROPERTIES:
+:CUSTOM_ID: part-2
+:END:
+*Task:* Find the position of the character that causes Santa to first
+enter the basement (floor -1). Positions are 1-indexed.
+
+*** Examples
+:PROPERTIES:
+:CUSTOM_ID: examples-1
+:END:
+| Input   | Result |
+|---------+--------|
+| =)=     | 1      |
+| =()())= | 5      |
+
+** Solution Approach
+:PROPERTIES:
+:CUSTOM_ID: solution-approach
+:END:
+*** Part 1
+:PROPERTIES:
+:CUSTOM_ID: part-1-1
+:END:
+Simple character counting: count =(= as +1 and =)= as -1, sum all
+values.
+
+*** Part 2
+:PROPERTIES:
+:CUSTOM_ID: part-2-1
+:END:
+Iterate through characters tracking floor level. Return the 1-indexed
+position when floor first becomes -1.
+
+** Running
+:PROPERTIES:
+:CUSTOM_ID: running
+:END:
+#+begin_src sh
+ruby solution.rb
+#+end_src
+
+** Testing
+:PROPERTIES:
+:CUSTOM_ID: testing
+:END:
+#+begin_src sh
+rspec spec/
+#+end_src

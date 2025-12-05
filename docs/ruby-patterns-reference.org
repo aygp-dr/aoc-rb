@@ -1,0 +1,714 @@
+* Advent of Code: Patterns & Tools Reference
+:PROPERTIES:
+:CUSTOM_ID: advent-of-code-patterns-tools-reference
+:END:
+A comprehensive guide to common patterns, algorithms, and data
+structures encountered across 10 years of Advent of Code (2015-2024),
+with Ruby REPL helpers for interactive problem solving.
+
+--------------
+
+** Table of Contents
+:PROPERTIES:
+:CUSTOM_ID: table-of-contents
+:END:
+1. [[#input-parsing-patterns][Input Parsing Patterns]]
+2. [[#data-structures][Data Structures]]
+3. [[#core-algorithms][Core Algorithms]]
+4. [[#mathematical-concepts][Mathematical Concepts]]
+5. [[#string--text-processing][String & Text Processing]]
+6. [[#grid--navigation-problems][Grid & Navigation Problems]]
+7. [[#graph-algorithms][Graph Algorithms]]
+8. [[#optimization-techniques][Optimization Techniques]]
+9. [[#repl-helper-reference][REPL Helper Reference]]
+10. [[#year-by-year-highlights][Year-by-Year Highlights]]
+
+--------------
+
+** Input Parsing Patterns
+:PROPERTIES:
+:CUSTOM_ID: input-parsing-patterns
+:END:
+*** Common Input Formats
+:PROPERTIES:
+:CUSTOM_ID: common-input-formats
+:END:
+| Format                          | Example              | REPL Helper          |
+|---------------------------------+----------------------+----------------------|
+| Single integers per line        | =123\n456\n789=      | =ints(year, day)=    |
+| Comma-separated values          | =1,2,3,4,5=          | =nums(str)=          |
+| Character grid                  | =##.\n.#.\n...=      | =grid(year, day)=    |
+| Groups separated by blank lines | =group1\n\ngroup2=   | =groups(year, day)=  |
+| Direction sequences             | =R29\nL6\nR43=       | =lines(year, day)=   |
+| Structured instructions         | =move 5 from 1 to 2= | =extract_ints(line)= |
+
+*** Parsing Code Patterns
+:PROPERTIES:
+:CUSTOM_ID: parsing-code-patterns
+:END:
+#+begin_src ruby
+# Read all integers from a line
+line.scan(/-?\d+/).map(&:to_i)
+
+# Parse direction + distance
+line.match(/([UDLR])(\d+)/) { [$1, $2.to_i] }
+
+# Split by blank lines into groups
+input.split("\n\n").map { |g| g.lines.map(&:chomp) }
+
+# Character grid to 2D array
+input.lines.map { |l| l.chomp.chars }
+#+end_src
+
+--------------
+
+** Data Structures
+:PROPERTIES:
+:CUSTOM_ID: data-structures
+:END:
+*** Sets (O(1) Membership Testing)
+:PROPERTIES:
+:CUSTOM_ID: sets-o1-membership-testing
+:END:
+Essential for tracking visited states, detecting duplicates, and cycle
+detection.
+
+#+begin_src ruby
+require 'set'
+visited = Set.new
+return x unless visited.add?(pos)  # Returns nil if already present
+#+end_src
+
+*Common Uses:* - Visited states in BFS/DFS - Detecting first duplicate
+(2018 Day 1) - Tracking positions in grid traversal
+
+*** Hash with Default Values
+:PROPERTIES:
+:CUSTOM_ID: hash-with-default-values
+:END:
+Perfect for frequency counting and sparse data.
+
+#+begin_src ruby
+# Frequency counting
+freq = Hash.new(0)
+items.each { |x| freq[x] += 1 }
+
+# Same as tally (Ruby 2.7+)
+items.tally
+
+# Adjacency list
+graph = Hash.new { |h, k| h[k] = [] }
+graph[from] << to
+#+end_src
+
+*** Complex Numbers for 2D Coordinates
+:PROPERTIES:
+:CUSTOM_ID: complex-numbers-for-2d-coordinates
+:END:
+Elegant representation for grid navigation.
+
+#+begin_src ruby
+pos = Complex(0, 0)      # Start at origin
+dir = Complex(0, 1)       # Facing north
+pos += dir * distance     # Move forward
+dir *= Complex(0, 1)      # Turn right (multiply by i)
+dir *= Complex(0, -1)     # Turn left (multiply by -i)
+#+end_src
+
+*Advantages:* - Rotation is just multiplication - Addition moves
+position - Built-in equality and hashing
+
+*** Priority Queue
+:PROPERTIES:
+:CUSTOM_ID: priority-queue
+:END:
+For Dijkstra's algorithm and A* search.
+
+#+begin_src ruby
+# Simple approach (sort each iteration)
+pq = [[0, start]]
+until pq.empty?
+  pq.sort_by!(&:first)
+  cost, node = pq.shift
+  # ... process
+end
+
+# Or use the PriorityQueue class from aoc_utils
+#+end_src
+
+--------------
+
+** Core Algorithms
+:PROPERTIES:
+:CUSTOM_ID: core-algorithms
+:END:
+*** Breadth-First Search (BFS)
+:PROPERTIES:
+:CUSTOM_ID: breadth-first-search-bfs
+:END:
+Find shortest path in unweighted graphs.
+
+#+begin_src ruby
+def bfs(start, &neighbors)
+  distances = { start => 0 }
+  queue = [start]
+
+  until queue.empty?
+    current = queue.shift
+    neighbors.call(current).each do |neighbor|
+      next if distances.key?(neighbor)
+      distances[neighbor] = distances[current] + 1
+      queue << neighbor
+    end
+  end
+
+  distances
+end
+#+end_src
+
+*Common Uses:* - Shortest path in maze - Flood fill / connected
+components - Level-order traversal
+
+*** Cycle Detection
+:PROPERTIES:
+:CUSTOM_ID: cycle-detection
+:END:
+For problems requiring billions of iterations.
+
+#+begin_src ruby
+# Find when state repeats
+cycle = detect_cycle(initial) { |state| next_state(state) }
+# => {start: 10, length: 7, state: ...}
+
+# Fast-forward to iteration N
+final = fast_forward(initial, 1_000_000_000) { |s| next_state(s) }
+#+end_src
+
+*Common Uses:* - 2017 Day 6 (memory reallocation) - 2018 Day 1 (first
+repeated frequency) - Any "do this 10^9 times" problem
+
+*** Dynamic Programming
+:PROPERTIES:
+:CUSTOM_ID: dynamic-programming
+:END:
+Memoization pattern for overlapping subproblems.
+
+#+begin_src ruby
+# Hash-based memoization
+@memo = {}
+def solve(state)
+  return @memo[state] if @memo.key?(state)
+  @memo[state] = # ... compute result
+end
+
+# Or use Hash with default block
+fib = Hash.new { |h, n| h[n] = n <= 1 ? n : h[n-1] + h[n-2] }
+fib[100]  # Computed with memoization
+#+end_src
+
+--------------
+
+** Mathematical Concepts
+:PROPERTIES:
+:CUSTOM_ID: mathematical-concepts
+:END:
+*** Modular Arithmetic
+:PROPERTIES:
+:CUSTOM_ID: modular-arithmetic
+:END:
+Essential for dial/rotation and large number problems.
+
+#+begin_src ruby
+# Position on circular dial
+pos = (pos + turn) % 100
+
+# Modular exponentiation
+def mod_pow(base, exp, mod)
+  result = 1
+  base %= mod
+  while exp > 0
+    result = (result * base) % mod if exp.odd?
+    exp >>= 1
+    base = (base * base) % mod
+  end
+  result
+end
+#+end_src
+
+*** GCD / LCM
+:PROPERTIES:
+:CUSTOM_ID: gcd-lcm
+:END:
+For cycle synchronization and fraction problems.
+
+#+begin_src ruby
+def gcd(a, b)
+  b.zero? ? a.abs : gcd(b, a % b)
+end
+
+def lcm(a, b)
+  (a * b).abs / gcd(a, b)
+end
+
+# When do multiple cycles align?
+[cycle1, cycle2, cycle3].reduce(1) { |acc, n| lcm(acc, n) }
+#+end_src
+
+*** Chinese Remainder Theorem
+:PROPERTIES:
+:CUSTOM_ID: chinese-remainder-theorem
+:END:
+Solve systems of modular equations.
+
+#+begin_src ruby
+# x ≡ r₁ (mod m₁)
+# x ≡ r₂ (mod m₂)
+# ...
+AocUtils.chinese_remainder_theorem(remainders, moduli)
+#+end_src
+
+*** Combinatorics
+:PROPERTIES:
+:CUSTOM_ID: combinatorics
+:END:
+#+begin_src ruby
+# All permutations
+arr.permutation.to_a
+
+# Choose k items
+arr.combination(k).to_a
+
+# Cartesian product
+arrays[0].product(*arrays[1..])
+
+# Power set (all subsets)
+(0..arr.length).flat_map { |k| arr.combination(k).to_a }
+#+end_src
+
+--------------
+
+** String & Text Processing
+:PROPERTIES:
+:CUSTOM_ID: string-text-processing
+:END:
+*** Regular Expressions
+:PROPERTIES:
+:CUSTOM_ID: regular-expressions
+:END:
+#+begin_src ruby
+# Extract all integers (including negative)
+str.scan(/-?\d+/).map(&:to_i)
+
+# Named captures
+if match = line.match(/(?<cmd>\w+) (?<val>\d+)/)
+  cmd, val = match[:cmd], match[:val].to_i
+end
+
+# Overlapping matches (lookahead)
+"121".scan(/(?=(\d\d))/).flatten  # => ["12", "21"]
+
+# Find last match
+line.reverse[/\d/]  # Last digit
+#+end_src
+
+*** Position-Aware Scanning
+:PROPERTIES:
+:CUSTOM_ID: position-aware-scanning
+:END:
+For schematic/grid problems where position matters.
+
+#+begin_src ruby
+# Find all numbers with their positions
+scan_numbers(text)  # => [[467, row, col_start, col_end], ...]
+
+# Find all symbols
+scan_symbols(text)  # => [["*", row, col], ...]
+
+# Check adjacency for gear problems
+span_neighbors(row, col_start, col_end)  # All adjacent cells
+#+end_src
+
+--------------
+
+** Grid & Navigation Problems
+:PROPERTIES:
+:CUSTOM_ID: grid-navigation-problems
+:END:
+*** Direction Constants
+:PROPERTIES:
+:CUSTOM_ID: direction-constants
+:END:
+#+begin_src ruby
+# As [row, col] deltas
+DIRS_4 = [[0, 1], [1, 0], [0, -1], [-1, 0]]
+DIRS_8 = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]]
+
+# As Complex numbers (col + row*i)
+NORTH = Complex(0, -1)
+SOUTH = Complex(0, 1)
+EAST  = Complex(1, 0)
+WEST  = Complex(-1, 0)
+#+end_src
+
+*** Grid Operations
+:PROPERTIES:
+:CUSTOM_ID: grid-operations
+:END:
+#+begin_src ruby
+# Bounds checking
+def in_bounds?(grid, r, c)
+  r >= 0 && c >= 0 && r < grid.length && c < grid[0].length
+end
+
+# Get neighbors
+def neighbors4(grid, r, c)
+  DIRS_4.map { |dr, dc| [r + dr, c + dc] }
+        .select { |nr, nc| in_bounds?(grid, nr, nc) }
+end
+
+# Find character in grid
+grid.each_with_index do |row, r|
+  row.each_with_index { |cell, c| return [r, c] if cell == target }
+end
+
+# Rotate grid 90° clockwise
+grid.transpose.map(&:reverse)
+#+end_src
+
+*** Navigation with Complex Numbers
+:PROPERTIES:
+:CUSTOM_ID: navigation-with-complex-numbers
+:END:
+#+begin_src ruby
+pos = Complex(0, 0)
+dir = NORTH
+
+instructions.each do |cmd|
+  case cmd
+  when 'L' then dir = turn_left(dir)
+  when 'R' then dir = turn_right(dir)
+  when 'F' then pos += dir
+  end
+end
+
+manhattan(pos)  # Manhattan distance from origin
+#+end_src
+
+--------------
+
+** Graph Algorithms
+:PROPERTIES:
+:CUSTOM_ID: graph-algorithms
+:END:
+*** Dijkstra's Algorithm
+:PROPERTIES:
+:CUSTOM_ID: dijkstras-algorithm
+:END:
+Shortest path with weighted edges.
+
+#+begin_src ruby
+def dijkstra(start, &neighbors)
+  dist = Hash.new(Float::INFINITY)
+  dist[start] = 0
+  pq = [[0, start]]
+  visited = Set.new
+
+  until pq.empty?
+    pq.sort_by!(&:first)
+    d, u = pq.shift
+    next if visited.include?(u)
+    visited << u
+
+    neighbors.call(u).each do |v, cost|
+      alt = d + cost
+      if alt < dist[v]
+        dist[v] = alt
+        pq << [alt, v]
+      end
+    end
+  end
+
+  dist
+end
+#+end_src
+
+*** A* Search
+:PROPERTIES:
+:CUSTOM_ID: a-search
+:END:
+Dijkstra with heuristic for goal-directed search.
+
+#+begin_src ruby
+# Heuristic: estimated cost to goal (must not overestimate)
+heuristic = ->(pos) { manhattan(pos, goal) }
+
+AocUtils.astar(start, goal, neighbors_proc, heuristic)
+#+end_src
+
+*** Topological Sort
+:PROPERTIES:
+:CUSTOM_ID: topological-sort
+:END:
+Order nodes respecting dependencies.
+
+#+begin_src ruby
+AocUtils.topological_sort(nodes, edges)
+# Returns nil if cycle detected
+#+end_src
+
+*** Flood Fill / Connected Components
+:PROPERTIES:
+:CUSTOM_ID: flood-fill-connected-components
+:END:
+#+begin_src ruby
+component = AocUtils.flood_fill(grid, start_row, start_col)
+all_components = AocUtils.connected_components(grid)
+#+end_src
+
+--------------
+
+** Optimization Techniques
+:PROPERTIES:
+:CUSTOM_ID: optimization-techniques
+:END:
+*** Lazy Evaluation
+:PROPERTIES:
+:CUSTOM_ID: lazy-evaluation
+:END:
+For potentially infinite sequences.
+
+#+begin_src ruby
+# Find first hash starting with "00000"
+(1..).lazy.find { |n| md5("#{key}#{n}").start_with?("00000") }
+#+end_src
+
+*** Frequency Maps Instead of Arrays
+:PROPERTIES:
+:CUSTOM_ID: frequency-maps-instead-of-arrays
+:END:
+For sparse data or large indices.
+
+#+begin_src ruby
+# Instead of: fish = Array.new(9, 0)
+fish = Hash.new(0)
+input.each { |timer| fish[timer] += 1 }
+
+# Simulate one day
+new_fish = Hash.new(0)
+fish.each do |timer, count|
+  if timer == 0
+    new_fish[6] += count
+    new_fish[8] += count
+  else
+    new_fish[timer - 1] += count
+  end
+end
+#+end_src
+
+*** Early Termination
+:PROPERTIES:
+:CUSTOM_ID: early-termination
+:END:
+#+begin_src ruby
+# Stop as soon as found
+arr.find { |x| expensive_check(x) }
+
+# With index
+arr.each_with_index { |x, i| return i if condition(x) }
+#+end_src
+
+*** Coordinate Compression
+:PROPERTIES:
+:CUSTOM_ID: coordinate-compression
+:END:
+For sparse coordinate problems.
+
+#+begin_src ruby
+mapping, sorted = AocUtils.compress_coordinates(all_x_values)
+# mapping: value -> compressed_index
+# sorted: compressed_index -> value
+#+end_src
+
+--------------
+
+** REPL Helper Reference
+:PROPERTIES:
+:CUSTOM_ID: repl-helper-reference
+:END:
+*** Quick Reference Card
+:PROPERTIES:
+:CUSTOM_ID: quick-reference-card
+:END:
+#+begin_src ruby
+# Start REPL
+gmake repl
+
+# Input loading
+input(2024, 1)     # Raw input string
+lines(2024, 1)     # Array of lines
+ints(2024, 1)      # Array of integers
+grid(2024, 1)      # 2D character array
+groups(2024, 1)    # Groups split by blank lines
+
+# Parsing
+nums("1, 2, 3")       # => [1, 2, 3]
+extract_ints("5x3")   # => [5, 3]
+scan_numbers(text)    # With positions
+scan_symbols(text)    # Non-digit symbols
+
+# Math
+gcd(12, 8)            # => 4
+lcm(3, 4)             # => 12
+prime?(17)            # => true
+divisors(12)          # => [1, 2, 3, 4, 6, 12]
+
+# Navigation
+pos = Complex(0, 0)
+dir = NORTH
+dir = turn_right(dir)
+dir = parse_dir('R')
+manhattan(pos)
+
+# Ranges
+ranges_overlap?(1..5, 4..8)
+range_intersect(1..5, 4..8)
+merge_ranges([1..3, 2..5])
+
+# Cycles
+detect_cycle(state) { |s| next_state(s) }
+fast_forward(state, 1_000_000) { |s| next_state(s) }
+
+# Display
+print_grid(grid)
+highlight_grid(grid, {[0,0] => true})
+histogram(values)
+table(data, headers)
+#+end_src
+
+--------------
+
+** Year-by-Year Highlights
+:PROPERTIES:
+:CUSTOM_ID: year-by-year-highlights
+:END:
+*** 2015 - The Beginning
+:PROPERTIES:
+:CUSTOM_ID: the-beginning
+:END:
+- *Day 4*: MD5 hashing (mining)
+- *Day 6*: Large grid toggling
+- *Day 10*: Look-and-say sequences
+
+*** 2016 - Assembly & Crypto
+:PROPERTIES:
+:CUSTOM_ID: assembly-crypto
+:END:
+- *Day 1*: Complex number navigation
+- *Day 12*: Assembunny interpreter
+- *Day 14*: Hash stretching
+
+*** 2017 - Knot Hash & Fractals
+:PROPERTIES:
+:CUSTOM_ID: knot-hash-fractals
+:END:
+- *Day 6*: Cycle detection
+- *Day 10*: Knot hash algorithm
+- *Day 21*: Fractal art / pattern matching
+
+*** 2018 - Time Travel
+:PROPERTIES:
+:CUSTOM_ID: time-travel
+:END:
+- *Day 1*: Frequency cycles
+- *Day 4*: Event log parsing
+- *Day 23*: 3D coordinate problems
+
+*** 2019 - Intcode Computer
+:PROPERTIES:
+:CUSTOM_ID: intcode-computer
+:END:
+- *Day 2-25*: Intcode VM (full computer)
+- *Day 3*: Wire intersection (Complex numbers)
+- *Day 12*: N-body simulation with LCM
+
+*** 2020 - Game of Life Variants
+:PROPERTIES:
+:CUSTOM_ID: game-of-life-variants
+:END:
+- *Day 1*: Two-sum / three-sum
+- *Day 6*: Set operations
+- *Day 11*: Cellular automata
+
+*** 2021 - Marine Biology
+:PROPERTIES:
+:CUSTOM_ID: marine-biology
+:END:
+- *Day 1*: Sliding windows
+- *Day 6*: Lanternfish (frequency map optimization)
+- *Day 15*: Dijkstra on large grids
+
+*** 2022 - Expedition
+:PROPERTIES:
+:CUSTOM_ID: expedition
+:END:
+- *Day 1*: Group summing
+- *Day 6*: Sliding window uniqueness
+- *Day 12*: BFS pathfinding
+
+*** 2023 - Lava & Gears
+:PROPERTIES:
+:CUSTOM_ID: lava-gears
+:END:
+- *Day 1*: Overlapping regex
+- *Day 3*: Schematic parsing (position-aware)
+- *Day 5*: Range splitting/mapping
+
+*** 2024 - Latest Challenges
+:PROPERTIES:
+:CUSTOM_ID: latest-challenges
+:END:
+- *Day 1*: Column parsing
+- *Day 3*: Mul instruction parsing
+- *Day 6*: Guard patrol simulation
+
+--------------
+
+** Problem Categories Summary
+:PROPERTIES:
+:CUSTOM_ID: problem-categories-summary
+:END:
+| Category         | Key Techniques      | Example Problems         |
+|------------------+---------------------+--------------------------|
+| *Parsing*        | Regex, scan, split  | Most Day 1s              |
+| *Grid Traversal* | BFS, flood fill     | 2022 Day 12, 2024 Day 6  |
+| *Navigation*     | Complex numbers     | 2016 Day 1, 2019 Day 3   |
+| *Cycle Finding*  | Floyd/Brent, hash   | 2017 Day 6, 2018 Day 1   |
+| *Optimization*   | Dijkstra, A*        | 2021 Day 15, 2023 Day 17 |
+| *Simulation*     | State machines      | 2021 Day 6, 2019 Intcode |
+| *Combinatorics*  | Permutation, subset | 2020 Day 1, many Day 25s |
+| *Math*           | Modular, CRT, LCM   | 2019 Day 12, 2020 Day 13 |
+
+--------------
+
+** Getting Started
+:PROPERTIES:
+:CUSTOM_ID: getting-started
+:END:
+#+begin_src sh
+# Clone the repository
+git clone https://github.com/aygp-dr/aoc-rb.git
+cd aoc-rb
+
+# Start the interactive REPL
+gmake repl
+
+# Load a specific day's input
+input(2024, 1)
+
+# Explore with helpers
+lines(2024, 1).first(5)
+#+end_src
+
+--------------
+
+/Document generated from analysis of AoC solutions 2015-2024/

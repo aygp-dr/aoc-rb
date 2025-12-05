@@ -1,0 +1,38 @@
+* Advent of Code YEAR - Ruby
+:PROPERTIES:
+:CUSTOM_ID: advent-of-code-year---ruby
+:END:
+** Completed Challenges
+:PROPERTIES:
+:CUSTOM_ID: completed-challenges
+:END:
+| Day | Title | Part 1 | Part 2 | Notes |
+|-----+-------+--------+--------+-------|
+| 01  | TBD   | ⭐     | ⭐     |       |
+
+** Running Solutions
+:PROPERTIES:
+:CUSTOM_ID: running-solutions
+:END:
+#+begin_src sh
+# Run specific day
+ruby YEAR/day01/solution.rb
+
+# Run tests
+rspec YEAR/day01/spec/
+
+# Run all tests for a year
+rspec YEAR/
+#+end_src
+
+** Interesting Patterns Used
+:PROPERTIES:
+:CUSTOM_ID: interesting-patterns-used
+:END:
+- Day XX: Pattern name and description
+
+** Performance Notes
+:PROPERTIES:
+:CUSTOM_ID: performance-notes
+:END:
+- Day XX: Timing and optimization details

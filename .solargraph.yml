@@ -1,0 +1,36 @@
+# Solargraph configuration for Ruby LSP
+# See https://solargraph.org/guides/configuration
+
+include:
+  - "lib/**/*.rb"
+  - "2015/**/*.rb"
+  - "2016/**/*.rb"
+  - "2017/**/*.rb"
+  - "2018/**/*.rb"
+  - "2019/**/*.rb"
+  - "2020/**/*.rb"
+  - "2021/**/*.rb"
+  - "2022/**/*.rb"
+  - "2023/**/*.rb"
+  - "2024/**/*.rb"
+  - "2025/**/*.rb"
+  - "2026-pre/**/*.rb"
+  - "tutorials/**/*.rb"
+  - "bin/**/*.rb"
+
+exclude:
+  - vendor/**/*
+  - spec/**/*
+  - .bundle/**/*
+
+require: []
+
+domains: []
+
+reporters:
+  - rubocop
+  - require_not_found
+
+plugins: []
+
+max_files: 5000

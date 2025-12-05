@@ -1,0 +1,246 @@
+#+TITLE: Ruby LSP Setup for Emacs
+#+AUTHOR: Jason Walsh
+#+OPTIONS: toc:2 num:nil
+
+* Overview
+
+This project uses Solargraph as the Ruby Language Server Protocol (LSP) implementation for intelligent code completion, documentation, and diagnostics.
+
+* Prerequisites
+
+** Install Solargraph
+
+Solargraph is included in the project's Gemfile. Install with:
+
+#+begin_src bash
+cd /path/to/aoc-rb
+bundle install
+#+end_src
+
+Or install globally:
+
+#+begin_src bash
+gem install solargraph
+#+end_src
+
+** Verify Installation
+
+#+begin_src bash
+solargraph --version
+# Should output: solargraph 0.50.x
+#+end_src
+
+* Emacs Configuration
+
+** Option 1: lsp-mode (Feature-rich)
+
+#+begin_src emacs-lisp
+;; Install lsp-mode and lsp-ui
+(use-package lsp-mode
+  :ensure t
+  :commands (lsp lsp-deferred)
+  :hook ((ruby-mode . lsp-deferred)
+         (ruby-ts-mode . lsp-deferred))
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :config
+  ;; Ruby/Solargraph configuration
+  (setq lsp-solargraph-use-bundler t)  ; Use bundler for project gems
+  (setq lsp-solargraph-multi-root nil))
+
+(use-package lsp-ui
+  :ensure t
+  :commands lsp-ui-mode
+  :config
+  (setq lsp-ui-doc-enable t)
+  (setq lsp-ui-doc-show-with-cursor t)
+  (setq lsp-ui-sideline-enable t))
+#+end_src
+
+** Option 2: eglot (Built-in, Emacs 29+)
+
+#+begin_src emacs-lisp
+;; eglot is built into Emacs 29+
+(use-package eglot
+  :ensure nil  ; Built-in
+  :hook ((ruby-mode . eglot-ensure)
+         (ruby-ts-mode . eglot-ensure))
+  :config
+  ;; Use bundler to find solargraph
+  (add-to-list 'eglot-server-programs
+               '((ruby-mode ruby-ts-mode)
+                 . ("bundle" "exec" "solargraph" "stdio"))))
+#+end_src
+
+** Supporting Packages
+
+#+begin_src emacs-lisp
+;; Enhanced Ruby editing
+(use-package ruby-mode
+  :ensure nil  ; Built-in
+  :mode "\\.rb\\'"
+  :interpreter "ruby"
+  :config
+  (setq ruby-indent-level 2)
+  (setq ruby-insert-encoding-magic-comment nil))
+
+;; Tree-sitter for modern syntax highlighting (Emacs 29+)
+(use-package ruby-ts-mode
+  :ensure nil  ; Built-in
+  :mode "\\.rb\\'"
+  :config
+  (setq ruby-indent-level 2))
+
+;; Interactive Ruby REPL
+(use-package inf-ruby
+  :ensure t
+  :hook ((ruby-mode . inf-ruby-minor-mode)
+         (ruby-ts-mode . inf-ruby-minor-mode))
+  :config
+  (setq inf-ruby-default-implementation "irb"))
+
+;; RSpec integration
+(use-package rspec-mode
+  :ensure t
+  :hook ((ruby-mode . rspec-mode)
+         (ruby-ts-mode . rspec-mode)))
+
+;; RuboCop linting
+(use-package rubocop
+  :ensure t
+  :hook ((ruby-mode . rubocop-mode)
+         (ruby-ts-mode . rubocop-mode)))
+
+;; Company for completion UI (if using lsp-mode)
+(use-package company
+  :ensure t
+  :hook (after-init . global-company-mode)
+  :config
+  (setq company-minimum-prefix-length 1)
+  (setq company-idle-delay 0.1))
+#+end_src
+
+* Project Configuration
+
+** .dir-locals.el
+
+The project includes =.dir-locals.el= which automatically enables LSP when you open Ruby files:
+
+#+begin_src emacs-lisp
+;; Automatically enables lsp-mode or eglot when solargraph is found
+(ruby-mode . ((eval . (when (and (fboundp 'lsp) (executable-find "solargraph"))
+                        (lsp-deferred)))
+              (eval . (when (and (fboundp 'eglot-ensure) (executable-find "solargraph"))
+                        (eglot-ensure)))))
+#+end_src
+
+** Solargraph Configuration
+
+Create =.solargraph.yml= in project root for custom configuration:
+
+#+begin_src yaml
+# .solargraph.yml
+include:
+  - "lib/**/*.rb"
+  - "2015/**/*.rb"
+  - "2016/**/*.rb"
+  - "2017/**/*.rb"
+  - "2018/**/*.rb"
+  - "2019/**/*.rb"
+  - "2020/**/*.rb"
+  - "2021/**/*.rb"
+  - "2022/**/*.rb"
+  - "2023/**/*.rb"
+  - "2024/**/*.rb"
+  - "2025/**/*.rb"
+  - "tutorials/**/*.rb"
+exclude:
+  - vendor/**/*
+  - spec/**/*
+require: []
+domains: []
+reporters:
+  - rubocop
+  - require_not_found
+plugins: []
+max_files: 5000
+#+end_src
+
+* Key Bindings (lsp-mode)
+
+| Key | Action |
+|-----+--------|
+| =C-c l g r= | Find references |
+| =C-c l g d= | Go to definition |
+| =C-c l g i= | Go to implementation |
+| =C-c l r r= | Rename symbol |
+| =C-c l a a= | Execute code action |
+| =C-c l h h= | Show documentation |
+| =C-c l f= | Format buffer |
+
+* Key Bindings (eglot)
+
+| Key | Action |
+|-----+--------|
+| =M-.= | Go to definition |
+| =M-,= | Go back |
+| =C-c C-r= | Rename symbol |
+| =C-c C-a= | Code actions |
+| =C-h .= | Show documentation |
+
+* Features Provided
+
+** Code Intelligence
+- Autocompletion with documentation
+- Go to definition/references
+- Symbol search
+- Hover documentation
+
+** Diagnostics
+- RuboCop integration for linting
+- Syntax error highlighting
+- Type checking hints
+
+** Refactoring
+- Rename symbol across project
+- Extract method/variable (via code actions)
+
+* Troubleshooting
+
+** Solargraph not found
+
+#+begin_src bash
+# Check if in PATH
+which solargraph
+
+# If using bundler, ensure gems installed
+bundle install
+
+# Or use bundle exec
+bundle exec solargraph --version
+#+end_src
+
+** Slow startup
+
+#+begin_src bash
+# Pre-index the project
+cd /path/to/aoc-rb
+solargraph bundle
+#+end_src
+
+** Documentation not showing
+
+#+begin_src bash
+# Download Ruby core documentation
+solargraph download-core
+#+end_src
+
+* Org-Babel Ruby Integration
+
+The project also includes =emacs/aoc-rb.el= for Org-Babel Ruby support:
+
+#+begin_src emacs-lisp
+(require 'aoc-rb (expand-file-name "emacs/aoc-rb.el" (projectile-project-root)))
+#+end_src
+
+This enables evaluating Ruby code blocks in org files with =C-c C-c=.

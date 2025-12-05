@@ -1,0 +1,97 @@
+* Day 1: Historian Hysteria
+:PROPERTIES:
+:CUSTOM_ID: day-1-historian-hysteria
+:END:
+[[https://adventofcode.com/2024/day/1][Advent of Code 2024 - Day 1]]
+
+** Problem
+:PROPERTIES:
+:CUSTOM_ID: problem
+:END:
+The Chief Historian is missing! While searching for clues, the
+Historians have compiled two lists of location IDs, but the lists don't
+quite match up.
+
+*** Input Format
+:PROPERTIES:
+:CUSTOM_ID: input-format
+:END:
+Two columns of numbers separated by whitespace:
+
+#+begin_example
+3   4
+4   3
+2   5
+1   3
+3   9
+3   3
+#+end_example
+
+** Part 1: Total Distance
+:PROPERTIES:
+:CUSTOM_ID: part-1-total-distance
+:END:
+*Task:* Calculate the total distance between the two lists.
+
+*Algorithm:* 1. Sort both lists in ascending order 2. Pair up: smallest
+with smallest, second-smallest with second-smallest, etc. 3. Calculate
+absolute difference for each pair 4. Sum all differences
+
+*Example:* - Sorted left: =[1, 2, 3, 3, 3, 4]= - Sorted right:
+=[3, 3, 3, 4, 5, 9]= - Distances:
+=|1-3| + |2-3| + |3-3| + |3-4| + |3-5| + |4-9|= - =
+=2 + 1 + 0 + 1 + 2 + 5 = 11=
+
+** Part 2: Similarity Score
+:PROPERTIES:
+:CUSTOM_ID: part-2-similarity-score
+:END:
+*Task:* Calculate a similarity score based on how often each number from
+the left list appears in the right list.
+
+*Algorithm:* 1. Count frequency of each number in the right list 2. For
+each number in the left list, multiply it by its count in the right
+list 3. Sum all products
+
+*Example:* - Left list: =[3, 4, 2, 1, 3, 3]= - Right list counts:
+={3: 3, 4: 1, 5: 1, 9: 1}= - Calculations: - =3 * 3 = 9= (3 appears 3
+times) - =4 * 1 = 4= (4 appears 1 time) - =2 * 0 = 0= (2 doesn't
+appear) - =1 * 0 = 0= (1 doesn't appear) - =3 * 3 = 9= - =3 * 3 = 9= -
+Total: =9 + 4 + 0 + 0 + 9 + 9 = 31=
+
+** Solution Approach
+:PROPERTIES:
+:CUSTOM_ID: solution-approach
+:END:
+*** Part 1
+:PROPERTIES:
+:CUSTOM_ID: part-1
+:END:
+#+begin_src ruby
+left_sorted.zip(right_sorted).sum { |l, r| (l - r).abs }
+#+end_src
+
+*** Part 2
+:PROPERTIES:
+:CUSTOM_ID: part-2
+:END:
+#+begin_src ruby
+right_counts = @right.tally
+@left.sum { |num| num * right_counts.fetch(num, 0) }
+#+end_src
+
+** Running
+:PROPERTIES:
+:CUSTOM_ID: running
+:END:
+#+begin_src sh
+ruby solution.rb
+#+end_src
+
+** Testing
+:PROPERTIES:
+:CUSTOM_ID: testing
+:END:
+#+begin_src sh
+rspec spec/
+#+end_src

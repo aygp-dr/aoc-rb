@@ -1,0 +1,43 @@
+* Contributors
+:PROPERTIES:
+:CUSTOM_ID: contributors
+:END:
+Thank you to everyone who has contributed to this project!
+
+** Maintainers
+:PROPERTIES:
+:CUSTOM_ID: maintainers
+:END:
+- *Jason Walsh* ([[https://github.com/jwalsh][[cite/t:@jwalsh]]]) -
+  Project creator and maintainer
+
+** How to Contribute
+:PROPERTIES:
+:CUSTOM_ID: how-to-contribute
+:END:
+1. Fork the repository
+2. Create a feature branch (=git checkout -b feature/amazing-solution=)
+3. Write your solution following the project structure
+4. Add tests for your solution
+5. Ensure all tests pass (=gmake test=)
+6. Commit your changes with conventional commits
+7. Push to your branch
+8. Open a Pull Request
+
+** Code of Conduct
+:PROPERTIES:
+:CUSTOM_ID: code-of-conduct
+:END:
+This project follows a standard Code of Conduct. Please be respectful
+and constructive in all interactions.
+
+** Recognition
+:PROPERTIES:
+:CUSTOM_ID: recognition
+:END:
+Contributors who submit solutions or improvements will be added to this
+file.
+
+--------------
+
+/Generated from aoc-rb - Advent of Code Ruby implementations/
