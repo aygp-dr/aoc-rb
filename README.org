@@ -1,10 +1,10 @@
-#+TITLE: Advent of Code - Ruby
+#+TITLE: Ruby Patterns & Idioms
+#+SUBTITLE: Learning Ruby through Algorithmic Problem Solving
 #+AUTHOR: Jason Walsh
 #+OPTIONS: toc:2 num:nil
 
 #+HTML: <p align="center">
 #+HTML: <a href="https://www.ruby-lang.org/"><img src="https://img.shields.io/badge/Ruby-3.3.0-CC342D?logo=ruby&logoColor=white" alt="Ruby 3.3.0"></a>
-#+HTML: <a href="https://adventofcode.com/"><img src="https://img.shields.io/badge/Advent%20of%20Code-2015--2024-00CC00" alt="Advent of Code"></a>
 #+HTML: <a href="https://github.com/aygp-dr/aoc-rb/actions"><img src="https://github.com/aygp-dr/aoc-rb/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 #+HTML: <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
 #+HTML: </p>
@@ -17,109 +17,216 @@
 
 * About
 
-Ruby implementations for [[https://adventofcode.com/][Advent of Code]] puzzles from 2015-2024. This repository uses *literate programming* with Emacs Org-mode - the project setup and documentation are tangled from =setup.org=.
+A *Ruby learning resource* demonstrating idiomatic patterns through algorithmic problem solving. Uses puzzle-style problems as a vehicle for exploring Ruby's expressive features, not as the primary focus.
+
+*This is a pedagogy-first repository* - the goal is learning Ruby, not solving puzzles.
+
+* What You'll Learn
+
+** Core Ruby Idioms
+
+| Pattern | Example | File |
+|---------+---------+------|
+| Hash memoization | ~memo[n] \vert\vert= compute~ | =tutorials/examples/fib.rb= |
+| Blocks & Procs | ~items.map(&:to_i)~ | Throughout |
+| Complex numbers for 2D | ~pos += dir * distance~ | =2016/day01/solution.rb= |
+| Set operations | ~Set.add?~ returns nil if exists | =2024/day06/solution.rb= |
+| Range membership | ~range.cover?(id)~ vs ~include?~ | =2025/day05/solution.rb= |
+| Struct for data | ~Struct.new(:x, :y)~ | =2016/day01/solution.rb= |
+| Pattern matching | ~case/in~ destructuring | =2023/day01/solution.rb= |
+
+** Algorithm Patterns
+
+| Category | Techniques | Example Location |
+|----------+------------+------------------|
+| Parsing | ~scan~, ~split~, regex groups | Most solutions |
+| Grid traversal | BFS, flood fill, neighbors | =lib/aoc_utils.rb= |
+| Navigation | Complex number rotation | =lib/repl_helpers.rb= |
+| Cycle detection | State hashing, fast-forward | =lib/repl_helpers.rb= |
+| Range operations | Merge, intersect, binary search | =2025/day05/solution.rb= |
+
+** Data Structures
+
+- ~Set~ for O(1) membership
+- ~Hash~ with default blocks for memoization
+- ~Complex~ for elegant 2D coordinate math
+- ~PriorityQueue~ for Dijkstra/A*
+- ~Range~ for interval operations
 
 * Quick Start
 
 #+begin_src bash
-# Clone the repository
+# Clone and enter
 git clone https://github.com/aygp-dr/aoc-rb.git
 cd aoc-rb
 
-# Allow direnv (if using)
-direnv allow
-
-# Check dependencies and tangle/install
-gmake
-
-# Run tests
-gmake test
+# Start interactive REPL with all helpers loaded
+gmake repl
 #+end_src
 
-* Requirements
+** Explore in the REPL
 
-| Tool      | Version    | Purpose                        |
-|-----------+------------+--------------------------------|
-| Ruby      | 3.3.0+     | Language runtime               |
-| Bundler   | 2.x        | Dependency management          |
-| Emacs     | 29+        | Org-mode tangling              |
-| direnv    | 2.x        | Environment management         |
-| GNU Make  | 4.x        | Build automation (=gmake=)     |
-| jj        | (optional) | Modern version control         |
+#+begin_src ruby
+# Direction helpers (Complex numbers)
+pos = Complex(0, 0)
+dir = NORTH
+pos += dir * 5          # Move 5 steps
+dir = turn_right(dir)   # Rotate 90°
+
+# Range operations
+ranges = [(1..5), (3..8), (10..15)]
+merge_ranges(ranges)    # => [1..8, 10..15]
+
+# Cycle detection
+detect_cycle(1) { |n| (n * 2) % 7 }
+# => {start: 0, length: 3, state: 1}
+
+# Grid helpers
+grid = [['#', '.'], ['.', '#']]
+AocUtils.neighbors_4(0, 0)  # Adjacent cells
+#+end_src
 
 * Project Structure
 
 #+begin_example
 aoc-rb/
-├── setup.org         # Literate source (tangle to generate project)
-├── Makefile          # Build targets
-├── .envrc            # direnv configuration
-├── .dir-locals.el    # Emacs project settings
-├── Gemfile           # Ruby dependencies
-├── bin/              # Scripts
-├── lib/              # Shared utilities
-├── spec/             # RSpec configuration
-├── templates/        # Solution templates
-└── YYYY/             # Year directories
-    └── dayNN/        # Day solutions
-        ├── solution.rb
-        ├── input.txt
-        └── spec/
+├── lib/
+│   ├── aoc_utils.rb      # Core algorithms & data structures
+│   ├── aoc_test.rb       # Lightweight testing (no gems)
+│   ├── aoc_debug.rb      # Debugging utilities
+│   └── repl_helpers.rb   # Interactive exploration tools
+├── tutorials/
+│   ├── examples/         # Ruby pattern examples
+│   └── *.org             # Learning guides
+├── docs/
+│   └── aoc-patterns-overview.md  # Comprehensive reference
+├── YYYY/dayNN/           # Problem-based examples
+│   ├── solution.rb       # Demonstrates specific patterns
+│   └── spec/             # Tests showing usage
+└── emacs/
+    └── aoc-rb.el         # Org-babel Ruby support
 #+end_example
 
-* Usage
+* Key Files
 
-** Running Solutions
+| File | Purpose |
+|------+---------|
+| =lib/aoc_utils.rb= | 40+ utility functions: math, graphs, grids, parsing |
+| =lib/repl_helpers.rb= | Shell-like commands, navigation, cycle detection |
+| =lib/aoc_test.rb= | Pure Ruby assertions (no RSpec needed) |
+| =docs/aoc-patterns-overview.md= | Comprehensive patterns reference |
 
-#+begin_src bash
-# Setup a year's directory structure
-gmake setup-year YEAR=2024
+* Ruby Features Demonstrated
 
-# Run a specific day
-ruby 2024/day01/solution.rb
+** Enumerable Mastery
 
-# Run tests for a day
-gmake test-day YEAR=2024 DAY=01
+#+begin_src ruby
+# Chaining
+items.map(&:to_i).select(&:positive?).sum
 
-# Run all tests for a year
-gmake test-year YEAR=2024
+# each_with_object (cleaner than reduce for building)
+ranges.each_with_object(Set.new) { |r, set| set.merge(r.to_a) }
+
+# Lazy evaluation for infinite sequences
+(1..).lazy.find { |n| expensive_check(n) }
+
+# tally for frequency counting (Ruby 2.7+)
+"hello".chars.tally  # => {"h"=>1, "e"=>1, "l"=>2, "o"=>1}
 #+end_src
 
-** Development Workflow
+** Functional Patterns
 
-1. Fetch puzzle input and save to =YYYY/dayNN/input.txt=
-2. Write tests in =YYYY/dayNN/spec/solution_spec.rb=
-3. Implement solution in =YYYY/dayNN/solution.rb=
-4. Run with =ruby YYYY/dayNN/solution.rb=
+#+begin_src ruby
+# Symbol-to-proc
+words.map(&:upcase)
 
-* Makefile Targets
+# Method objects
+method(:solve).call(input)
 
-| Target          | Description                           |
-|-----------------+---------------------------------------|
-| =all=           | Check deps, tangle, install (default) |
-| =deps=          | Verify all dependencies               |
-| =tangle=        | Tangle org files                      |
-| =install=       | Install Ruby gems                     |
-| =test=          | Run all tests                         |
-| =test-year=     | Run tests for a year                  |
-| =test-day=      | Run tests for a specific day          |
-| =setup-year=    | Generate year directory structure     |
-| =clean=         | Remove generated files                |
-| =help=          | Show available targets                |
+# Numbered parameters (Ruby 3.0+)
+pairs.count { _2 > _1 }
+#+end_src
 
-* Emacs Setup
+** Metaprogramming (Light)
 
-This project includes =.dir-locals.el= for seamless Emacs integration:
+#+begin_src ruby
+# Dynamic method definition
+define_method(:solve) { |input| process(input) }
 
-- Ruby mode with RSpec and RuboCop
-- Org-mode with babel languages configured
-- Automatic formatting settings
+# Method aliasing for multiple approaches
+alias_method :fresh?, :fresh_cover?
+#+end_src
 
-To tangle =setup.org= from Emacs: =C-c C-v t= or =M-x org-babel-tangle=
+* Testing Without Gems
 
-* Progress
+#+begin_src ruby
+require_relative 'lib/aoc_test'
+include AocAssert
 
-See =setup.org= for the full progress table across all years.
+# Simple assertions
+assert_eq 42, compute(input), "basic case"
+
+# Table-driven tests
+run_table([
+  { input: "11", expected: true, name: "repeat" },
+  { input: "12", expected: false, name: "no repeat" },
+]) { |input| is_repeat?(input) }
+
+# Batch with summary
+run_tests([
+  [expected1, actual1, "case 1"],
+  [expected2, actual2, "case 2"],
+])
+#+end_src
+
+* REPL Helpers Reference
+
+#+begin_src ruby
+gmake repl
+
+# Navigation (shell-like)
+ls, ll, pwd, cd, cat, head, tail
+
+# Parsing
+nums("1,2,3")           # => [1, 2, 3]
+scan_numbers(text)      # With positions
+extract_ints("x=5,y=3") # => [5, 3]
+
+# Math
+gcd(12, 8)              # => 4
+lcm(3, 4)               # => 12
+prime?(17)              # => true
+
+# Directions (Complex numbers)
+NORTH, SOUTH, EAST, WEST
+turn_left(dir), turn_right(dir)
+manhattan(pos1, pos2)
+
+# Cycles
+detect_cycle(state) { |s| next_state(s) }
+fast_forward(state, 1_000_000_000) { |s| next_state(s) }
+
+# Ranges
+ranges_overlap?(r1, r2)
+merge_ranges([r1, r2, r3])
+range_intersect(r1, r2)
+#+end_src
+
+* Learning Approach
+
+1. *Start with the REPL* - explore helpers interactively
+2. *Read solution files* - each demonstrates specific Ruby patterns
+3. *Run the tests* - see assertions as documentation
+4. *Modify and experiment* - input files are intentionally empty
+5. *Check the docs* - =docs/aoc-patterns-overview.md= for comprehensive reference
+
+* Requirements
+
+| Tool | Version | Purpose |
+|------+---------+---------|
+| Ruby | 3.3.0+ | Language runtime |
+| GNU Make | 4.x | =gmake repl=, =gmake test= |
+| Emacs | 29+ | (Optional) Org-mode tangling |
 
 * License
 
