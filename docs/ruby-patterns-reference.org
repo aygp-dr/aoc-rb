@@ -671,6 +671,70 @@ table(data, headers)
 - *Day 3*: Mul instruction parsing
 - *Day 6*: Guard patrol simulation
 
+*** 2025 - Ruby Idiom Focus
+:PROPERTIES:
+:CUSTOM_ID: ruby-idiom-focus
+:END:
+Each day demonstrates specific Ruby patterns:
+
+*Day 1 - Dial Rotation (Modular Arithmetic):*
+#+begin_src ruby
+position = (position - amount) % DIAL_SIZE  # Wrap-around
+rotations = input.scan(/[LR]\d+/)           # Parse direction+number
+#+end_src
+
+*Day 3 - Greedy Selection (Nested Iteration):*
+#+begin_src ruby
+# All pairs (i, j) where i < j
+(0...n).each { |i| (i+1...n).each { |j| ... } }
+line.chars.map(&:to_i)  # String to digit array
+#+end_src
+
+*Day 4 - Neighbor Counting (Grid Patterns):*
+#+begin_src ruby
+grid = input.lines.map { |l| l.chomp.chars }
+DIRECTIONS_8.count { |dr, dc|
+  nr, nc = r + dr, c + dc
+  in_bounds?(grid, nr, nc) && grid[nr][nc] == '@'
+}
+#+end_src
+
+*Day 5 - Range Membership (Multiple Approaches):*
+#+begin_src ruby
+# O(r): Range#cover? - constant time per range
+ranges.any? { |range| range.cover?(id) }
+
+# O(1): Set-based - after O(n) preprocessing
+fresh_set = ranges.each_with_object(Set.new) { |r, s| s.merge(r.to_a) }
+fresh_set.include?(id)
+
+# O(log r): Binary search on merged ranges
+merged = ranges.sort_by(&:begin).each_with_object([]) { |r, m|
+  if m.empty? || m.last.end < r.begin - 1
+    m << r
+  else
+    m[-1] = (m.last.begin..[m.last.end, r.end].max)
+  end
+}
+idx = merged.bsearch_index { |r| r.end >= id }
+idx && merged[idx].cover?(id)
+#+end_src
+
+*Day 6 - Column Parsing (Transpose):*
+#+begin_src ruby
+# Row-to-column transformation
+columns = grid.transpose
+
+# Pad lines to equal length
+grid = lines.map { |l| l.ljust(max_len).chars }
+
+# Reduce with operator symbol
+numbers.reduce(:*)  # same as numbers.reduce { |a,b| a * b }
+
+# Digit extraction
+col.select { |c| c =~ /\d/ }.join.to_i
+#+end_src
+
 --------------
 
 ** Problem Categories Summary
